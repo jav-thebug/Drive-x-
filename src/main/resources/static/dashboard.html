@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DRIVEX — Command Center</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root {
+            --bg: #080808;
+            --surface: #0f0f0e;
+            --surface-2: #141413;
+            --surface-3: #1c1c1a;
+            --gold: #c9a84c;
+            --gold-light: #e8c97a;
+            --gold-dim: rgba(201, 168, 76, 0.12);
+            --gold-border: rgba(201, 168, 76, 0.22);
+            --gold-border-strong: rgba(201, 168, 76, 0.5);
+            --text: #f0ece0;
+            --text-secondary: #8c8a82;
+            --text-muted: #4a4843;
+            --radius-sm: 8px;
+            --radius-md: 14px;
+            --radius-lg: 22px;
+            --radius-xl: 30px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+            pointer-events: none; z-index: 1000; opacity: 0.6;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(201,168,76,0.04) 0%, transparent 70%);
+            top: -100px; left: 50%; transform: translateX(-50%);
+            pointer-events: none; z-index: 0;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 260px 1fr 300px;
+            grid-template-rows: 68px 1fr;
+            gap: 14px; padding: 14px;
+            height: 100vh;
+            position: relative; z-index: 1;
+        }
+
+        /* HEADER */
+        .header {
+            grid-column: 1 / -1;
+            display: flex; align-items: center; justify-content: space-between;
+            background: var(--surface);
+            border: 0.5px solid var(--gold-border);
+            border-radius: var(--radius-lg);
+            padding: 0 28px;
+            position: relative; overflow: hidden;
+        }
+        .header::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(201,168,76,0.025) 50%, transparent);
+            pointer-events: none;
+        }
+        .logo { display: flex; align-items: center; gap: 8px; font-size: 20px; }
+        .neon-text { color: var(--gold); }
+        .header-center { position: relative; width: 420px; }
+        .search-wrap {
+            display: flex; align-items: center; gap: 10px;
+            background: var(--surface-3);
+            border: 0.5px solid rgba(255,255,255,0.06);
+            border-radius: var(--radius-md);
+            padding: 10px 16px;
+            transition: border-color 0.3s;
+        }
+        .search-wrap:focus-within { border-color: var(--gold-border-strong); }
+        .search-icon { color: var(--text-muted); font-size: 13px; }
+        .search-wrap input {
+            background: none; border: none; outline: none;
+            color: var(--text); font-family: 'DM Sans', sans-serif;
+            font-size: 13px; width: 100%; letter-spacing: 0.02em;
+        }
+        .search-wrap input::placeholder { color: var(--text-muted); font-weight: 300; }
+        .search-shortcut {
+            font-family: 'DM Mono', monospace; font-size: 10px;
+            color: var(--text-muted); background: var(--surface-2);
+            border: 0.5px solid rgba(255,255,255,0.06);
+            border-radius: 4px; padding: 3px 7px; white-space: nowrap;
+        }
+        .header-right { display: flex; align-items: center; gap: 16px; }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #4caf82; box-shadow: 0 0 8px rgba(76,175,130,0.6); }
+        .user-name { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 400; color: var(--text-secondary); letter-spacing: 0.04em; }
+        .avatar {
+            width: 34px; height: 34px; border-radius: 50%;
+            border: 1px solid var(--gold-border-strong);
+            background: var(--gold-dim);
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 13px; font-weight: 600; color: var(--gold);
+        }
+
+        /* LEFT SIDEBAR WRAPPER */
+        .sidebar-left {
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* DEFAULT VIEW: services + saved places */
+        .sidebar-default {
+            display: flex; flex-direction: column; gap: 12px;
+            height: 100%;
+            transition: opacity 0.25s, transform 0.25s;
+        }
+        .sidebar-default.hidden {
+            opacity: 0; transform: translateX(-16px); pointer-events: none;
+            position: absolute; top: 0; left: 0; right: 0;
+        }
+
+        /* RIDE OPTIONS FULL VIEW */
+        .sidebar-ride {
+            display: flex; flex-direction: column;
+            height: 100%;
+            opacity: 0; transform: translateX(16px);
+            pointer-events: none;
+            position: absolute; top: 0; left: 0; right: 0;
+            transition: opacity 0.25s, transform 0.25s;
+        }
+        .sidebar-ride.visible {
+            opacity: 1; transform: translateX(0); pointer-events: all;
+        }
+
+        .panel {
+            background: var(--surface);
+            border: 0.5px solid var(--gold-border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+        }
+
+        .panel-label {
+            font-family: 'DM Mono', monospace;
+            font-size: 9px; font-weight: 400;
+            letter-spacing: 0.2em; color: var(--text-muted);
+            text-transform: uppercase; margin-bottom: 16px;
+        }
+
+        /* Back button + header */
+        .ride-panel-header {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 16px;
+        }
+        .back-btn {
+            width: 28px; height: 28px;
+            border-radius: var(--radius-sm);
+            border: 0.5px solid var(--gold-border);
+            background: var(--gold-dim);
+            color: var(--gold);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; cursor: pointer;
+            transition: all 0.2s; flex-shrink: 0;
+        }
+        .back-btn:hover { background: rgba(201,168,76,0.2); border-color: var(--gold-border-strong); }
+
+        .ride-panel-title {
+            font-family: 'DM Mono', monospace;
+            font-size: 9px; letter-spacing: 0.2em;
+            color: var(--text-muted); text-transform: uppercase;
+        }
+
+        /* Filter pills */
+        .ride-filter-row { display: flex; gap: 6px; margin-bottom: 14px; }
+        .ride-filter-btn {
+            flex: 1; padding: 8px 6px;
+            border-radius: 999px;
+            border: 0.5px solid rgba(255,255,255,0.07);
+            background: transparent;
+            color: var(--text-muted);
+            font-family: 'DM Mono', monospace; font-size: 9px;
+            letter-spacing: 0.1em; text-transform: uppercase;
+            cursor: pointer; transition: all 0.2s; white-space: nowrap;
+        }
+        .ride-filter-btn.active { background: var(--gold-dim); border-color: var(--gold-border-strong); color: var(--gold-light); }
+        .ride-filter-btn:hover:not(.active) { background: rgba(255,255,255,0.03); color: var(--text-secondary); }
+
+        /* Ride cards */
+        .ride-list { display: flex; flex-direction: column; gap: 8px; flex: 1; overflow-y: auto; }
+        .ride-list::-webkit-scrollbar { width: 3px; }
+        .ride-list::-webkit-scrollbar-thumb { background: var(--gold-border); border-radius: 2px; }
+
+        .ride-card {
+            padding: 14px 14px;
+            border-radius: var(--radius-md);
+            border: 0.5px solid rgba(255,255,255,0.06);
+            background: rgba(255,255,255,0.02);
+            cursor: pointer;
+            transition: all 0.22s cubic-bezier(0.4,0,0.2,1);
+            display: flex; align-items: center; gap: 12px;
+            position: relative; overflow: hidden;
+        }
+        .ride-card::before {
+            content: '';
+            position: absolute; left: 0; top: 0; bottom: 0;
+            width: 2.5px; background: transparent;
+            border-radius: 0 2px 2px 0;
+            transition: background 0.22s;
+        }
+        .ride-card.selected { background: var(--gold-dim); border-color: var(--gold-border-strong); }
+        .ride-card.selected::before { background: var(--gold); }
+        .ride-card:hover:not(.selected) { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); }
+
+        .ride-icon {
+            width: 46px; height: 46px;
+            border-radius: var(--radius-sm);
+            background: rgba(255,255,255,0.04);
+            border: 0.5px solid rgba(255,255,255,0.07);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; flex-shrink: 0;
+            transition: all 0.22s;
+        }
+        .ride-card.selected .ride-icon { background: var(--gold-dim); border-color: var(--gold-border-strong); }
+
+        .ride-body { flex: 1; min-width: 0; }
+        .ride-name { font-size: 13px; font-weight: 500; color: var(--text); letter-spacing: 0.02em; line-height: 1; margin-bottom: 3px; }
+        .ride-card.selected .ride-name { color: var(--gold-light); }
+        .ride-desc { font-size: 10.5px; color: var(--text-muted); font-weight: 300; margin-bottom: 5px; }
+        .ride-meta { display: flex; gap: 10px; font-family: 'DM Mono', monospace; font-size: 9px; color: var(--text-muted); letter-spacing: 0.05em; }
+        .ride-meta { display: none; }
+        .ride-meta span { color: var(--text-secondary); }
+
+        .ride-price { text-align: right; flex-shrink: 0; }
+        .ride-price-val { font-family: 'Cormorant Garamond', serif; font-size: 19px; font-weight: 500; color: var(--text); line-height: 1; }
+        .ride-card.selected .ride-price-val { color: var(--gold-light); }
+        .ride-price-label { font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: 0.1em; color: var(--text-muted); margin-top: 2px; }
+
+        /* SERVICE BUTTONS */
+        .service-list { display: flex; flex-direction: column; gap: 6px; }
+        .svc-btn {
+            width: 100%; padding: 13px 15px;
+            border-radius: var(--radius-md);
+            border: 0.5px solid transparent; background: transparent;
+            color: var(--text-secondary); cursor: pointer;
+            display: flex; align-items: center; gap: 13px;
+            transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+            text-align: left; position: relative; overflow: hidden;
+        }
+        .svc-btn::before {
+            content: '';
+            position: absolute; left: 0; top: 50%;
+            transform: translateY(-50%) scaleY(0);
+            width: 2px; height: 60%; background: var(--gold);
+            border-radius: 0 2px 2px 0;
+            transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+        }
+        .svc-btn.active { background: var(--gold-dim); border-color: var(--gold-border); color: var(--gold-light); }
+        .svc-btn.active::before { transform: translateY(-50%) scaleY(1); }
+        .svc-btn:hover:not(.active) { background: rgba(255,255,255,0.03); color: var(--text); }
+
+        .svc-icon {
+            width: 34px; height: 34px;
+            border-radius: var(--radius-sm);
+            background: rgba(255,255,255,0.04);
+            border: 0.5px solid rgba(255,255,255,0.06);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; flex-shrink: 0; transition: all 0.25s;
+        }
+        .svc-btn.active .svc-icon { background: var(--gold-dim); border-color: var(--gold-border-strong); }
+        .svc-info strong { display: block; font-size: 13px; font-weight: 500; letter-spacing: 0.02em; line-height: 1; margin-bottom: 3px; }
+        .svc-info small { font-size: 11px; color: var(--text-muted); font-weight: 300; }
+        .svc-btn.active .svc-info small { color: rgba(201,168,76,0.5); }
+
+        .fav-panel { flex-grow: 1; }
+        .fav-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 11px 0;
+            border-bottom: 0.5px solid rgba(255,255,255,0.04);
+            cursor: pointer; transition: opacity 0.2s;
+        }
+        .fav-item:last-child { border-bottom: none; }
+        .fav-item:hover { opacity: 0.7; }
+        .fav-dot {
+            width: 28px; height: 28px; border-radius: 8px;
+            background: var(--surface-3);
+            border: 0.5px solid rgba(255,255,255,0.06);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; flex-shrink: 0;
+        }
+        .fav-info strong { display: block; font-size: 12px; font-weight: 500; color: var(--text); }
+        .fav-info span { font-size: 10px; color: var(--text-muted); font-family: 'DM Mono', monospace; letter-spacing: 0.05em; }
+        .divider { height: 0.5px; background: rgba(255,255,255,0.04); margin: 2px 0; }
+
+        /* VIEWPORT */
+        .viewport {
+            position: relative; border-radius: var(--radius-xl);
+            border: 0.5px solid var(--gold-border);
+            overflow: hidden; background: #0a0a09;
+        }
+        #map { filter: invert(1) hue-rotate(180deg) brightness(1.3) saturate(0.7); position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+
+        @keyframes ripple {
+            0%   { transform: translate(-50%,-50%) scale(2); opacity: 0.2; }
+            100% { transform: translate(-50%,-50%) scale(2.2); opacity: 0; }
+        }
+
+        .map-controls {
+            position: absolute; top: 20px; right: 20px;
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .map-ctrl-btn {
+            width: 36px; height: 36px;
+            background: rgba(15,15,14,0.9);
+            border: 0.5px solid var(--gold-border);
+            border-radius: var(--radius-sm);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; color: var(--text-secondary); font-size: 16px;
+            transition: all 0.2s; backdrop-filter: blur(10px);
+        }
+        .map-ctrl-btn:hover { border-color: var(--gold-border-strong); color: var(--gold); }
+
+        .action-float {
+            position: absolute; bottom: 20px; left: 20px; right: 20px;
+            background: rgba(10,10,9,0.92); backdrop-filter: blur(24px);
+            border: 0.5px solid var(--gold-border);
+            border-radius: var(--radius-lg);
+            padding: 20px 22px;
+            display: flex; align-items: center; justify-content: space-between; gap: 20px;
+        }
+        .action-float::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(201,168,76,0.4) 50%, transparent);
+        }
+        .route-info { display: flex; flex-direction: column; gap: 6px; flex-grow: 1; }
+        .route-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.2em; color: var(--text-muted); text-transform: uppercase; }
+        .route-from-to { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); }
+        .route-arrow { color: var(--gold); font-size: 11px; }
+        .route-meta { display: flex; align-items: center; gap: 16px; }
+        .meta-item { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 0.05em; }
+        .meta-item span { color: var(--text-secondary); }
+        .action-right { display: flex; align-items: center; gap: 20px; }
+        .price-display { text-align: right; }
+        .price-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.15em; color: var(--text-muted); margin-bottom: 2px; }
+        .price-value { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 500; color: var(--gold-light); letter-spacing: 0.02em; line-height: 1; }
+        .price-value sup { font-size: 14px; vertical-align: super; }
+
+        .btn-confirm {
+            background: var(--gold); color: #0a0a09; border: none;
+            border-radius: var(--radius-md); padding: 14px 28px;
+            font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
+            letter-spacing: 0.12em; text-transform: uppercase;
+            cursor: pointer; transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+            white-space: nowrap; position: relative; overflow: hidden;
+        }
+        .btn-confirm::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%); pointer-events: none; }
+        .btn-confirm:hover { background: var(--gold-light); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(201,168,76,0.3); }
+        .btn-confirm:active { transform: translateY(0); }
+
+        .vehicle-selector { position: absolute; top: 20px; left: 20px; display: flex; gap: 8px; }
+        .vehicle-pill {
+            display: flex; align-items: center; gap: 8px; padding: 9px 14px;
+            background: rgba(10,10,9,0.88); backdrop-filter: blur(12px);
+            border: 0.5px solid rgba(255,255,255,0.08); border-radius: 999px;
+            cursor: pointer; font-size: 12px; color: var(--text-secondary); transition: all 0.2s;
+        }
+        .vehicle-pill.active { border-color: var(--gold-border-strong); color: var(--gold-light); background: rgba(201,168,76,0.08); }
+        .vehicle-pill:hover:not(.active) { border-color: rgba(255,255,255,0.15); color: var(--text); }
+
+        /* RIGHT SIDEBAR */
+        .sidebar-right { display: flex; flex-direction: column; gap: 12px; }
+        .activity-panel { flex-grow: 1; overflow: hidden; }
+        .live-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.15em;
+            color: #4caf82; background: rgba(76,175,130,0.08);
+            border: 0.5px solid rgba(76,175,130,0.2); border-radius: 999px; padding: 3px 10px;
+        }
+        .live-badge::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: #4caf82; animation: blink 1.5s ease-in-out infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+        .log-list { display: flex; flex-direction: column; gap: 8px; }
+        .log-entry {
+            padding: 13px 14px; border-radius: var(--radius-md);
+            background: rgba(255,255,255,0.02); border: 0.5px solid rgba(255,255,255,0.05);
+            cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden;
+        }
+        .log-entry::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--gold); opacity: 0.5; }
+        .log-entry.transit::before { background: #4caf82; opacity: 1; }
+        .log-entry:hover { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.09); }
+        .log-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+        .log-title { font-size: 13px; font-weight: 500; color: var(--text); }
+        .log-badge { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.08em; padding: 2px 8px; border-radius: 999px; }
+        .log-badge.done { color: var(--text-muted); background: rgba(255,255,255,0.04); }
+        .log-badge.live { color: #4caf82; background: rgba(76,175,130,0.1); }
+        .log-meta { font-size: 11px; color: var(--text-muted); font-weight: 300; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .stat-card { background: rgba(255,255,255,0.02); border: 0.5px solid rgba(255,255,255,0.05); border-radius: var(--radius-md); padding: 14px; }
+        .stat-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.15em; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; }
+        .stat-value { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 500; color: var(--text); line-height: 1; }
+        .stat-value.accent { color: var(--gold-light); }
+        .stat-sub { font-size: 10px; color: var(--text-muted); margin-top: 4px; font-weight: 300; }
+
+        .toast {
+            position: fixed; bottom: 30px; left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--surface-2); border: 0.5px solid var(--gold-border-strong);
+            border-radius: var(--radius-md); padding: 14px 24px;
+            font-size: 13px; color: var(--text);
+            transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+            z-index: 999; white-space: nowrap;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body>
+
+<div class="layout">
+
+    <!-- HEADER -->
+    <header class="header">
+        <div class="logo"><span>⚡</span><span class="neon-text" style="font-family:'DM Sans',sans-serif;font-weight:500;letter-spacing:0.1em;">DRIVEX</span></div>
+        <div class="header-center">
+            <div class="search-wrap">
+                <span class="search-icon">⌕</span>
+                <input type="text" id="mainSearch" placeholder="Where to, Boss?">
+                <span class="search-shortcut">⌘ K</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="status-dot"></div>
+            <span class="user-name">Karachi Center</span>
+            <div class="avatar">KC</div>
+        </div>
+    </header>
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar-left">
+
+        <!-- DEFAULT STATE: services + saved places -->
+        <div class="sidebar-default" id="sidebarDefault">
+            <div class="panel">
+                <p class="panel-label">Services</p>
+                <div class="service-list">
+                    <button class="svc-btn active" data-service="ride">
+                        <div class="svc-icon">🚕</div>
+                        <div class="svc-info"><strong>Ride</strong><small>City Commute</small></div>
+                    </button>
+                    <button class="svc-btn" data-service="courier">
+                        <div class="svc-icon">📦</div>
+                        <div class="svc-info"><strong>Courier</strong><small>Instant Delivery</small></div>
+                    </button>
+                    <button class="svc-btn" data-service="charter">
+                        <div class="svc-icon">✈️</div>
+                        <div class="svc-info"><strong>Charter</strong><small>Executive Transfer</small></div>
+                    </button>
+                </div>
+            </div>
+            <div class="panel fav-panel">
+                <p class="panel-label">Saved Places</p>
+                <div class="fav-item">
+                    <div class="fav-dot">🏠</div>
+                    <div class="fav-info"><strong>Home</strong><span>Gulshan-e-Iqbal</span></div>
+                </div>
+                <div class="divider"></div>
+                <div class="fav-item">
+                    <div class="fav-dot">🏢</div>
+                    <div class="fav-info"><strong>Office</strong><span>DHA Phase V</span></div>
+                </div>
+                <div class="divider"></div>
+                <div class="fav-item">
+                    <div class="fav-dot">☕</div>
+                    <div class="fav-info"><strong>The Coffee Lab</strong><span>Clifton</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIDE OPTIONS STATE: fills entire sidebar -->
+        <div class="sidebar-ride" id="sidebarRide">
+            <div class="panel" style="display:flex;flex-direction:column;height:100%;gap:0;">
+
+                <!-- Header row with back button -->
+                <div class="ride-panel-header">
+                    <button class="back-btn" id="backBtn">←</button>
+                    <span class="ride-panel-title">Choose Your Ride</span>
+                </div>
+
+                <!-- Filter pills -->
+                <div class="ride-filter-row">
+                    <button class="ride-filter-btn active" data-filter="recommended">⭐ Best</button>
+                    <button class="ride-filter-btn" data-filter="faster">⚡ Faster</button>
+                    <button class="ride-filter-btn" data-filter="cheaper">💰 Cheaper</button>
+                </div>
+
+                <!-- Ride cards -->
+                <div class="ride-list">
+
+  <div class="ride-card selected" data-ride="auto" data-fare="220" data-eta="3" data-seats="3">
+    <div class="ride-icon" style="font-size:28px;width:52px;height:52px;">🛺</div>
+    <div class="ride-body">
+      <div class="ride-name" style="font-size:15px;margin-bottom:5px;">Auto</div>
+      <div class="ride-meta">⏱ <span>3 min</span> &nbsp;·&nbsp; 👤 <span>3 seats</span></div>
+    </div>
+    <div class="ride-price">
+      <div class="ride-price-val" style="font-size:22px;">₨220</div>
+    </div>
+  </div>
+
+  <div class="ride-card" data-ride="bike" data-fare="130" data-eta="2" data-seats="1">
+    <div class="ride-icon" style="font-size:28px;width:52px;height:52px;">🏍️</div>
+    <div class="ride-body">
+      <div class="ride-name" style="font-size:15px;margin-bottom:5px;">Bike</div>
+      <div class="ride-meta">⏱ <span>2 min</span> &nbsp;·&nbsp; 👤 <span>1 seat</span></div>
+    </div>
+    <div class="ride-price">
+      <div class="ride-price-val" style="font-size:22px;">₨130</div>
+    </div>
+  </div>
+
+  <div class="ride-card" data-ride="car" data-fare="380" data-eta="5" data-seats="4">
+    <div class="ride-icon" style="font-size:28px;width:52px;height:52px;">🚗</div>
+    <div class="ride-body">
+      <div class="ride-name" style="font-size:15px;margin-bottom:5px;">Car</div>
+      <div class="ride-meta">⏱ <span>5 min</span> &nbsp;·&nbsp; 👤 <span>4 seats</span></div>
+    </div>
+    <div class="ride-price">
+      <div class="ride-price-val" style="font-size:22px;">₨380</div>
+    </div>
+  </div>
+
+  <div class="ride-card" data-ride="carac" data-fare="490" data-eta="6" data-seats="4">
+    <div class="ride-icon" style="font-size:28px;width:52px;height:52px;">❄️</div>
+    <div class="ride-body">
+      <div class="ride-name" style="font-size:15px;margin-bottom:5px;">Car AC</div>
+      <div class="ride-meta">⏱ <span>6 min</span> &nbsp;·&nbsp; 👤 <span>4 seats</span></div>
+    </div>
+    <div class="ride-price">
+      <div class="ride-price-val" style="font-size:22px;">₨490</div>
+    </div>
+  </div>
+
+</div>
+            </div>
+        </div>
+    </aside>
+    <!-- MAIN VIEWPORT -->
+    <main class="viewport">
+        <div id="map"></div>
+
+        <div class="vehicle-selector">
+            <div class="vehicle-pill active" data-type="premium"><span>🚗</span><span>Premium</span></div>
+            <div class="vehicle-pill" data-type="comfort"><span>🚙</span><span>Comfort</span></div>
+            <div class="vehicle-pill" data-type="xl"><span>🚐</span><span>XL</span></div>
+        </div>
+
+        <div class="map-controls">
+            <button class="map-ctrl-btn">+</button>
+            <button class="map-ctrl-btn">−</button>
+            <button class="map-ctrl-btn">⊙</button>
+        </div>
+
+        <div class="action-float">
+            <div class="route-info">
+                <span class="route-label">Active Route</span>
+                <div class="route-from-to">
+                    <span>Clifton</span>
+                    <span class="route-arrow">→</span>
+                    <span>Saddar</span>
+                </div>
+                <div class="route-meta">
+                    <span class="meta-item">ETA <span>22 min</span></span>
+                    <span class="meta-item">DIST <span>8.4 km</span></span>
+                    <span class="meta-item">TRAFFIC <span>Moderate</span></span>
+                </div>
+            </div>
+            <div class="action-right">
+                <div class="price-display">
+                    <p class="price-label">Est. Fare</p>
+                    <p class="price-value" id="mainFare"><sup>₨</sup>220</p>
+                </div>
+                <button class="btn-confirm" id="confirmBtn">Confirm Ride</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- RIGHT SIDEBAR -->
+    <aside class="sidebar-right">
+        <div class="panel stats-panel">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <p class="stat-label">This Month</p>
+                    <p class="stat-value accent">24</p>
+                    <p class="stat-sub">rides taken</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">Saved</p>
+                    <p class="stat-value">₨1.2k</p>
+                    <p class="stat-sub">vs taxi</p>
+                </div>
+            </div>
+        </div>
+        <div class="panel activity-panel">
+            <div class="panel-header">
+                <p class="panel-label" style="margin-bottom:0;">Live Activity</p>
+                <span class="live-badge">Live</span>
+            </div>
+            <div class="log-list">
+                <div class="log-entry transit">
+                    <div class="log-top"><span class="log-title">Laptop Package</span><span class="log-badge live">In Transit</span></div>
+                    <p class="log-meta">DHA → Gulshan · 3.2 km remaining</p>
+                </div>
+                <div class="log-entry">
+                    <div class="log-top"><span class="log-title">Clifton → Saddar</span><span class="log-badge done">Completed</span></div>
+                    <p class="log-meta">22 mins ago · ₨520</p>
+                </div>
+                <div class="log-entry">
+                    <div class="log-top"><span class="log-title">Home → Office</span><span class="log-badge done">Completed</span></div>
+                    <p class="log-meta">Yesterday · 09:15 AM · ₨340</p>
+                </div>
+                <div class="log-entry">
+                    <div class="log-top"><span class="log-title">Airport Transfer</span><span class="log-badge done">Completed</span></div>
+                    <p class="log-meta">Mon, 19 May · ₨1,200</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+      const searchInput = document.getElementById('mainSearch');
+
+    const sidebarDefault = document.getElementById('sidebarDefault');
+    const sidebarRide    = document.getElementById('sidebarRide');
+    const mainFare       = document.getElementById('mainFare');
+    const toast          = document.getElementById('toast');
+    let routeLine = null; // route line track karne ke liye
+
+    function showToast(msg, d = 3000) {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), d);
+    }
+
+    // SERVICE BUTTONS
+    document.querySelectorAll('.svc-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.svc-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            if (btn.dataset.service === 'ride') {
+                // Slide default out, ride panel in
+                sidebarDefault.classList.add('hidden');
+                sidebarRide.classList.add('visible');
+            }
+        });
+    });
+
+    // BACK BUTTON
+    document.getElementById('backBtn').addEventListener('click', () => {
+        sidebarRide.classList.remove('visible');
+        sidebarDefault.classList.remove('hidden');
+        // Keep Ride button highlighted
+        document.querySelectorAll('.svc-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector('[data-service="ride"]').classList.add('active');
+        searchInput.placeholder = 'Where to, Boss?';
+    });
+
+    // RIDE CARD SELECTION
+
+document.querySelectorAll('.ride-card').forEach(card => {
+    card.addEventListener('click', () => {
+        document.querySelectorAll('.ride-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        const fare = card.dataset.fare;
+        mainFare.innerHTML = `<sup>₨</sup>${fare}`;
+        showToast(`${card.querySelector('.ride-name').textContent} selected · ₨${fare} est.`);
+
+        // Search bar update
+                searchStep = 'pickup';
+        searchInput.value = '';
+        searchInput.placeholder = '📍 Select Pickup Location';
+        searchInput.focus();
+    });
+});
+
+    // RIDE FILTER BUTTONS
+    document.querySelectorAll('.ride-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.ride-filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const list = document.querySelector('.ride-list');
+            const cards = Array.from(list.querySelectorAll('.ride-card'));
+            const f = btn.dataset.filter;
+            if (f === 'cheaper') {
+                cards.sort((a, b) => +a.dataset.fare - +b.dataset.fare);
+            } else if (f === 'faster') {
+                cards.sort((a, b) => +a.dataset.eta - +b.dataset.eta);
+            } else {
+                const order = { auto:0, bike:1, car:2, carac:3 };
+                cards.sort((a, b) => order[a.dataset.ride] - order[b.dataset.ride]);
+            }
+            cards.forEach(c => list.appendChild(c));
+        });
+    });
+
+    // VEHICLE PILLS
+    document.querySelectorAll('.vehicle-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+            document.querySelectorAll('.vehicle-pill').forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+        });
+    });
+
+    // CONFIRM BUTTON
+    let state = 'idle';
+    document.getElementById('confirmBtn').addEventListener('click', () => {
+        const btn = document.getElementById('confirmBtn');
+        if (state === 'idle') {
+            state = 'searching';
+            btn.textContent = 'Finding Driver...';
+            btn.style.background = 'rgba(201,168,76,0.5)';
+            btn.style.color = '#f0ece0';
+            setTimeout(() => {
+                state = 'confirmed';
+                btn.textContent = 'Track Live →';
+                btn.style.background = '#4caf82';
+                btn.style.color = '#0a0a09';
+                showToast('Driver assigned — Ahmed K. · ETA 4 min');
+            }, 2200);
+        }
+    });
+
+   // TRIP STATE
+const currentUser = localStorage.getItem('drivex_user') || 'guest';
+let searchStep    = 'idle';    // idle → pickup → destination
+let tripPickup    = '';
+let tripDest      = '';
+let pickupCoords  = { lat: 0, lon: 0 };  // ← add karo
+let destCoords    = { lat: 0, lon: 0 };  // ← add karo
+let searchMarker  = null;
+let pickupMarker  = null;
+
+
+// Search handler
+searchInput.addEventListener('keypress', async e => {
+    if (e.key !== 'Enter' || !e.target.value.trim()) return;
+    const query = e.target.value.trim();
+
+    // Geocode karo
+    let lat, lon, displayName;
+    try {
+        const res  = await fetch(
+            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`,
+            { headers: { 'Accept-Language': 'en' } }
+        );
+        const data = await res.json();
+        if (!data.length) { showToast('Location not found.'); return; }
+        lat         = data[0].lat;
+        lon         = data[0].lon;
+        displayName = data[0].display_name.split(',')[0];
+    } catch {
+        showToast('Search failed. Check connection.');
+        return;
+    }
+
+    // PICKUP step
+    if (searchStep === 'pickup') {
+        tripPickup = displayName;
+        pickupCoords = { lat: parseFloat(lat), lon: parseFloat(lon) }; // ← add karo
+
+
+        // Pickup marker (gold)
+        if (pickupMarker) map.removeLayer(pickupMarker);
+        const pickupIcon = L.divIcon({
+            className: '',
+            html: `<div style="position:relative;width:36px;height:36px;">
+                     <div style="position:absolute;top:50%;left:50%;
+                          transform:translate(-50%,-50%);width:12px;height:12px;
+                          border-radius:50%;background:#c9a84c;
+                          box-shadow:0 0 12px rgba(201,168,76,0.8);"></div>
+                   </div>`,
+            iconSize: [36,36], iconAnchor: [18,18]
+        });
+        pickupMarker = L.marker([lat, lon], { icon: pickupIcon }).addTo(map);
+        map.flyTo([lat, lon], 15, { duration: 1.2 });
+
+        // Route info update
+        document.querySelector('.route-from-to').innerHTML =
+            `<span>${displayName}</span>
+             <span class="route-arrow">→</span>
+             <span style="color:var(--text-muted)">Select destination</span>`;
+
+        showToast(`✅ Pickup set: ${displayName}`);
+
+        // Next step
+        searchStep = 'destination';
+        searchInput.value = '';
+        searchInput.placeholder = '🏁 Select Destination';
+
+    // DESTINATION step
+    } else if (searchStep === 'destination') {
+        tripDest = displayName;
+        destCoords = { lat: parseFloat(lat), lon: parseFloat(lon) }; // ← YEH HAI?
+
+
+        // Destination marker (green)
+        if (searchMarker) map.removeLayer(searchMarker);
+        const destIcon = L.divIcon({
+            className: '',
+            html: `<div style="position:relative;width:36px;height:36px;">
+                     <div style="position:absolute;top:50%;left:50%;
+                          transform:translate(-50%,-50%);width:36px;height:36px;
+                          border-radius:50%;border:1.5px solid rgba(76,175,130,0.4);
+                          animation:ripple 2s ease-out infinite;"></div>
+                     <div style="position:absolute;top:50%;left:50%;
+                          transform:translate(-50%,-50%);width:14px;height:14px;
+                          border-radius:50%;background:#4caf82;
+                          box-shadow:0 0 12px rgba(76,175,130,0.8);"></div>
+                   </div>`,
+            iconSize: [36,36], iconAnchor: [18,18]
+        });
+        searchMarker = L.marker([lat, lon], { icon: destIcon }).addTo(map);
+        map.flyTo([lat, lon], 14, { duration: 1.2 });
+
+        // Route info update
+        document.querySelector('.route-from-to').innerHTML =
+            `<span>${tripPickup}</span>
+             <span class="route-arrow">→</span>
+             <span>${displayName}</span>`;
+
+        showToast(`🏁 Destination set: ${displayName}`);
+
+        // MongoDB mein save karo
+        const selectedCard = document.querySelector('.ride-card.selected');
+        const rideType = selectedCard?.querySelector('.ride-name')?.textContent || 'Unknown';
+        const fare     = selectedCard?.dataset.fare || '0';
+
+        const saveRes = await fetch('/api/locations/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        username:       currentUser,
+        pickup:         tripPickup,
+        destination:    tripDest,
+        rideType:       rideType,
+        fare:           fare,
+        pickupLat:      pickupCoords.lat.toString(),
+        pickupLon:      pickupCoords.lon.toString(),
+        destinationLat: destCoords.lat.toString(),
+        destinationLon: destCoords.lon.toString()
+    })
+});
+
+const saveData = await saveRes.json();
+updateFareCards(saveData.distanceKm, saveData.isPeakHour);
+
+// Fare cards update karo
+function updateFareCards(distanceKm, isPeakHour) {
+    const peakMultiplier = isPeakHour ? 1.5 : 1.0;
+    
+    const fareRates = {
+        'auto':  { base: 50,  perKm: 25 },
+        'bike':  { base: 30,  perKm: 15 },
+        'car':   { base: 80,  perKm: 35 },
+        'carac': { base: 100, perKm: 45 }
+    };
+
+    document.querySelectorAll('.ride-card').forEach(card => {
+        const rideType = card.dataset.ride;
+        const rates    = fareRates[rideType];
+        
+        // Fare calculate karo
+        const fare = Math.round(
+            (rates.base + (rates.perKm * distanceKm)) * peakMultiplier
+        );
+
+        // Card ka fare update karo
+        card.querySelector('.ride-price-val').textContent = `₨${fare}`;
+        
+        // dataset bhi update karo taake selection kaam kare
+        card.dataset.fare = fare;
+    });
+}
+drawRoute(pickupCoords, destCoords); // ← yeh hai?
+
+// Fare update karo
+mainFare.innerHTML = `<sup>₨</sup>${saveData.fare}`;
+
+// Peak hour badge dikhao
+if (saveData.isPeakHour) {
+    showToast(`⚡ Peak Hours — 1.5x Surge Applied!`, 4000);
+    
+    // Price red/orange dikhao
+    mainFare.style.color = '#f97316';
+} else {
+    mainFare.style.color = 'var(--gold-light)'; // normal color
+}
+
+// Distance + ETA update
+document.querySelector('.meta-item:nth-child(2)').innerHTML =
+    `DIST <span>${saveData.distanceKm} km</span>`;
+document.querySelector('.meta-item:nth-child(1)').innerHTML =
+    `ETA <span>${saveData.etaMinutes} min</span>`;
+
+showToast(`🏁 ${tripPickup} → ${tripDest} · ${saveData.distanceKm} km · ₨${saveData.fare}`);
+
+searchStep = 'idle';
+searchInput.value = '';
+searchInput.placeholder = 'Route set ✓';
+    }
+});
+
+async function drawRoute(pickup, dest) {
+    try {
+        // Ab Spring Boot se route lo — directly ORS nahi
+        const res = await fetch('/api/locations/route', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                pickupLat: pickup.lat.toString(),
+                pickupLon: pickup.lon.toString(),
+                destLat:   dest.lat.toString(),
+                destLon:   dest.lon.toString()
+            })
+        });
+
+        const data = await res.json();
+
+        // Purani line hatao
+        if (routeLine) map.removeLayer(routeLine);
+
+        // Nai line draw karo
+        routeLine = L.geoJSON(data, {
+            style: {
+                color: '#ef4444',
+                weight: 4,
+                opacity: 0.8,
+                dashArray: '10, 5'
+            }
+        }).addTo(map);
+
+        // Map ko route pe fit karo
+        map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+
+    } catch (err) {
+        console.log('Route draw failed:', err);
+    }
+}
+    // MAP
+    const map = L.map('map', { zoomControl: false }).setView([24.8607, 67.0011], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            const { latitude, longitude } = pos.coords;
+            map.setView([latitude, longitude], 15);
+            const pulseIcon = L.divIcon({
+                className: '',
+                html: `<div style="position:relative;width:40px;height:40px;"><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;border:1.5px solid rgba(201,168,76,0.5);animation:ripple 2s ease-out infinite;"></div><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(201,168,76,0.7);animation:ripple 2s ease-out infinite;animation-delay:0.5s;"></div><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:12px;height:12px;border-radius:50%;background:#c9a84c;box-shadow:0 0 10px rgba(201,168,76,0.8);"></div></div>`,
+                iconSize: [50,50], iconAnchor: [20,20]
+            });
+            L.marker([latitude, longitude], { icon: pulseIcon }).addTo(map);
+        }, () => {});
+    }
+
+    // Default: show services + saved places
+</script>
+</body>
+</html>
