@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DRIVEX — FreshCart Grocery Delivery</title>
+<meta name="description" content="OS Scheduling based Grocery Delivery — FCFS, Priority, Round Robin"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Monoton&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0a;
+    --card: #161612;
+    --card2: #1c1c18;
+    --fg: #f5f3eb;
+    --muted: #8a8a80;
+    --border: rgba(245,220,80,0.15);
+    --neon: #f5dc50;
+    --neon-strong: #ffe94a;
+    --neon-glow: 0 0 18px rgba(245,220,80,0.5), 0 0 50px rgba(245,220,80,0.25);
+    --green: #2ecc71;
+    --green-dim: rgba(46,204,113,0.1);
+    --green-border: rgba(46,204,113,0.3);
+    --green-glow: 0 0 16px rgba(46,204,113,0.45);
+    --radius: 14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--fg);font-family:'Space Grotesk',system-ui,sans-serif;min-height:100vh;overflow-x:hidden}
+  a{color:inherit;text-decoration:none}
+  button{font-family:inherit}
+  .font-display{font-family:'Monoton',sans-serif;letter-spacing:.04em;font-weight:400}
+  .neon{color:var(--neon);text-shadow:var(--neon-glow)}
+  .green{color:var(--green)}
+
+  .nav{display:flex;align-items:center;justify-content:space-between;padding:18px 40px;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(13,13,10,.92);backdrop-filter:blur(16px);z-index:100}
+  .logo{display:flex;align-items:center;gap:8px;font-size:18px}
+  .nav-links{display:flex;gap:24px;font-size:13px;color:var(--muted)}
+  .nav-links a:hover,.nav-links span{color:var(--green)}
+  .nav-links span{cursor:default}
+  .nav-right{display:flex;align-items:center;gap:10px}
+  .cart-btn{display:flex;align-items:center;gap:6px;background:var(--green-dim);border:1px solid var(--green-border);color:var(--green);padding:8px 16px;border-radius:999px;font-size:13px;cursor:pointer;transition:.2s}
+  .cart-btn:hover{background:rgba(46,204,113,.18);box-shadow:var(--green-glow)}
+  .back-link{background:transparent;border:1px solid var(--border);color:var(--muted);padding:8px 16px;border-radius:999px;font-size:13px;cursor:pointer;transition:.2s}
+  .back-link:hover{border-color:var(--neon);color:var(--neon)}
+
+  .tabs{display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 40px;background:var(--card)}
+  .tab{padding:14px 20px;font-size:13px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:.2s;background:transparent;border-top:none;border-left:none;border-right:none}
+  .tab:hover{color:var(--fg)}
+  .tab.active{color:var(--green);border-bottom-color:var(--green)}
+
+  .panel{display:none;padding:28px 40px;min-height:calc(100vh - 120px)}
+  .panel.active{display:block}
+
+  .shop-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+  .section-label{font-family:'Monoton',sans-serif;font-size:9px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase}
+  .cat-pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+  .pill{padding:7px 16px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;cursor:pointer;transition:.2s}
+  .pill:hover{border-color:var(--green);color:var(--green)}
+  .pill.active{background:var(--green-dim);border-color:var(--green-border);color:var(--green)}
+  .items-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
+  .item-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 14px;cursor:pointer;transition:.25s;text-align:center;position:relative;overflow:hidden}
+  .item-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2.5px;background:transparent;transition:.2s}
+  .item-card:hover{border-color:rgba(46,204,113,.5);transform:translateY(-3px)}
+  .item-card.selected{border-color:var(--green);background:rgba(46,204,113,.06)}
+  .item-card.selected::before{background:var(--green)}
+  .item-emoji{font-size:2.4rem;margin-bottom:8px;display:block}
+  .item-name{font-size:13px;font-weight:600;margin-bottom:4px}
+  .item-price{font-size:12px;color:var(--green);font-weight:700;margin-bottom:10px}
+  .item-weight{font-size:10px;color:var(--muted);margin-bottom:10px}
+  .qty-row{display:flex;align-items:center;justify-content:center;gap:8px}
+  .qty-btn{width:26px;height:26px;border-radius:50%;border:1px solid var(--green-border);background:transparent;color:var(--green);cursor:pointer;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:.2s}
+  .qty-btn:hover{background:var(--green-dim)}
+  .qty-val{font-size:13px;font-weight:700;min-width:20px;text-align:center}
+
+  .cart-grid{display:grid;grid-template-columns:1fr 360px;gap:20px}
+  .cart-table{width:100%;border-collapse:collapse}
+  .cart-table th{text-align:left;font-family:'Monoton',sans-serif;font-size:9px;letter-spacing:.15em;color:var(--muted);padding:10px 14px;border-bottom:1px solid var(--border)}
+  .cart-table td{padding:14px;border-bottom:1px solid rgba(255,255,255,.04);font-size:13px;vertical-align:middle}
+  .cart-empty{padding:60px;text-align:center;color:var(--muted)}
+  .summary-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;position:sticky;top:100px}
+  .sum-row{display:flex;justify-content:space-between;padding:8px 0;font-size:13px;border-bottom:1px solid rgba(255,255,255,.04)}
+  .sum-total{display:flex;justify-content:space-between;padding:12px 0;font-size:16px;font-weight:700;color:var(--green)}
+  .btn-checkout{width:100%;padding:14px;background:var(--green);color:#0d0d0a;border:none;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer;transition:.2s;margin-top:14px}
+  .btn-checkout:hover{background:#27ae60;box-shadow:var(--green-glow)}
+  .btn-checkout:disabled{background:#2a4a35;color:#4a7a5a;cursor:not-allowed}
+
+  .checkout-grid{display:grid;grid-template-columns:1fr 380px;gap:20px}
+  .form-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px}
+  .form-card h3{font-size:16px;font-weight:600;margin-bottom:18px;color:var(--green)}
+  .form-group{margin-bottom:16px}
+  .form-group label{display:block;font-size:11px;color:var(--muted);margin-bottom:6px;letter-spacing:.05em;text-transform:uppercase}
+  .form-group input,.form-group select{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--fg);border-radius:8px;padding:12px 14px;font-family:inherit;font-size:14px;transition:.2s}
+  .form-group input:focus,.form-group select:focus{outline:none;border-color:var(--green-border);box-shadow:0 0 0 3px rgba(46,204,113,.1)}
+  .form-group select option{background:var(--card2)}
+  .loc-btn{display:flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--border);color:var(--muted);padding:9px 14px;border-radius:8px;font-size:12px;cursor:pointer;margin-top:6px;transition:.2s;font-family:inherit}
+  .loc-btn:hover{border-color:var(--green-border);color:var(--green)}
+  .loc-status{font-size:11px;color:var(--green);margin-top:4px;min-height:16px}
+
+  .pay-opts{display:flex;flex-direction:column;gap:8px}
+  .pay-opt{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:.2s}
+  .pay-opt:hover{border-color:var(--green-border)}
+  .pay-opt.sel{border-color:var(--green);background:var(--green-dim)}
+  .pay-opt input[type=radio]{accent-color:var(--green);width:14px;height:14px}
+  .pay-label{font-size:13px}
+  .pay-sub{font-size:11px;color:var(--muted);margin-left:auto}
+
+  .priority-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-top:16px}
+  .priority-card h3{font-size:15px;margin-bottom:14px;color:var(--neon)}
+  .priority-opts{display:flex;flex-direction:column;gap:8px}
+  .p-opt{padding:12px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:.2s}
+  .p-opt:hover{border-color:rgba(245,220,80,.4)}
+  .p-opt.sel{border-color:var(--neon);background:rgba(245,220,80,.05)}
+  .p-opt-title{font-size:13px;font-weight:600}
+  .p-opt-sub{font-size:11px;color:var(--muted);margin-top:3px}
+
+  .order-summary-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;position:sticky;top:100px}
+  .order-items-list{max-height:200px;overflow-y:auto;margin-bottom:14px}
+  .oi-row{display:flex;justify-content:space-between;padding:7px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,.04)}
+  .btn-place{width:100%;padding:15px;background:var(--green);color:#0d0d0a;border:none;border-radius:999px;font-size:15px;font-weight:700;cursor:pointer;transition:.2s;margin-top:14px;display:flex;align-items:center;justify-content:center;gap:8px}
+  .btn-place:hover{background:#27ae60;box-shadow:var(--green-glow)}
+
+  .track-hero{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:18px;text-align:center}
+  .track-order-id{font-family:'Monoton',sans-serif;font-size:14px;color:var(--green);margin-bottom:10px}
+  .steps-bar{display:flex;align-items:center;gap:0;justify-content:center;flex-wrap:wrap;margin:16px 0}
+  .step-item{display:flex;align-items:center;gap:0}
+  .step-dot{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);transition:.3s}
+  .step-dot.done{background:var(--green);border-color:var(--green);color:#0d0d0a}
+  .step-dot.curr{background:rgba(46,204,113,.15);border-color:var(--green);color:var(--green)}
+  .step-label{font-size:10px;color:var(--muted);margin-top:4px;text-align:center}
+  .step-connector{width:40px;height:1px;background:var(--border)}
+  .step-connector.done{background:var(--green)}
+  .track-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  .track-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
+  .track-card h4{font-size:12px;color:var(--muted);margin-bottom:12px;letter-spacing:.1em;text-transform:uppercase}
+  .map-area{width:100%;height:130px;background:linear-gradient(135deg,#0a2010,#0d1a0d);border-radius:8px;position:relative;overflow:hidden;margin-bottom:10px;border:1px solid var(--green-border)}
+  .road-line{position:absolute;height:2px;background:repeating-linear-gradient(90deg,var(--green),var(--green) 8px,transparent 8px,transparent 16px);top:50%;width:90%;left:5%;box-shadow:var(--green-glow);opacity:.6}
+  .rider-dot{width:22px;height:22px;background:var(--green);border-radius:50%;position:absolute;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#0d0d0a;transition:left 1.5s ease;box-shadow:var(--green-glow)}
+  .home-dot{width:18px;height:18px;background:#e74c3c;border-radius:50%;position:absolute;right:8%;top:50%;transform:translateY(-50%);box-shadow:0 0 10px rgba(231,76,60,.6)}
+  .eta-badge{font-size:22px;font-weight:700;color:var(--green);text-align:center;margin-top:6px}
+  .eta-label{font-size:11px;color:var(--muted);text-align:center}
+
+  .stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+  .stat-box{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center}
+  .stat-num{font-family:'Monoton',sans-serif;font-size:22px;margin-bottom:4px}
+  .stat-lbl{font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+  .admin-grid{display:grid;grid-template-columns:260px 1fr;gap:16px;margin-bottom:16px}
+  .riders-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
+  .riders-panel h4{font-size:11px;color:var(--muted);margin-bottom:14px;letter-spacing:.15em;text-transform:uppercase}
+  .rider-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+  .rider-row:last-child{border-bottom:none}
+  .rider-avatar{width:32px;height:32px;border-radius:50%;background:var(--green-dim);border:1px solid var(--green-border);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--green);font-weight:700;flex-shrink:0}
+  .rider-info{flex:1;min-width:0}
+  .rider-name{font-size:13px;font-weight:500}
+  .rider-orders{font-size:10px;color:var(--muted)}
+  .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:10px;font-weight:600;letter-spacing:.05em}
+  .badge-green{background:rgba(46,204,113,.12);color:var(--green);border:1px solid var(--green-border)}
+  .badge-amber{background:rgba(245,220,80,.1);color:var(--neon);border:1px solid rgba(245,220,80,.3)}
+  .badge-gray{background:rgba(255,255,255,.04);color:var(--muted);border:1px solid rgba(255,255,255,.08)}
+  .badge-red{background:rgba(231,76,60,.1);color:#e74c3c;border:1px solid rgba(231,76,60,.3)}
+
+  .orders-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
+  .orders-panel h4{font-size:11px;color:var(--muted);margin-bottom:14px;letter-spacing:.15em;text-transform:uppercase}
+  .orders-table{width:100%;border-collapse:collapse;font-size:12px}
+  .orders-table th{text-align:left;padding:8px 10px;color:var(--muted);border-bottom:1px solid var(--border);font-weight:400;letter-spacing:.05em}
+  .orders-table td{padding:10px;border-bottom:1px solid rgba(255,255,255,.04)}
+  .order-id-cell{font-family:'Monoton',sans-serif;font-size:10px;color:var(--green)}
+
+  .algo-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+  .algo-panel h4{font-size:11px;color:var(--muted);margin-bottom:14px;letter-spacing:.15em;text-transform:uppercase}
+  .algo-tabs{display:flex;gap:8px;margin-bottom:16px}
+  .algo-tab{padding:8px 16px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;cursor:pointer;transition:.2s;font-family:inherit}
+  .algo-tab:hover{border-color:var(--green-border);color:var(--green)}
+  .algo-tab.active{background:var(--green-dim);border-color:var(--green);color:var(--green)}
+  .algo-info{padding:16px;background:var(--card2);border-radius:10px;border:1px solid var(--border)}
+  .algo-title{font-size:14px;font-weight:600;color:var(--neon);margin-bottom:8px}
+  .algo-desc{font-size:12px;color:var(--muted);line-height:1.7}
+  .rr-visualizer{display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap}
+  .rr-cell{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--muted);transition:.3s}
+  .rr-cell.next{background:var(--green-dim);border-color:var(--green);color:var(--green);box-shadow:var(--green-glow)}
+  .rr-cell.done{background:rgba(255,255,255,.04);color:var(--muted)}
+  .fcfs-queue{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .fcfs-item{padding:6px 12px;border-radius:6px;border:1px solid var(--border);font-size:11px;font-family:'Monoton',sans-serif;color:var(--muted)}
+  .fcfs-item.head{border-color:var(--green);color:var(--green);background:var(--green-dim)}
+  .priority-queue{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+  .pq-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;border:1px solid var(--border);font-size:12px}
+  .pq-urgent{border-color:rgba(231,76,60,.5);background:rgba(231,76,60,.06)}
+  .pq-express{border-color:rgba(245,220,80,.4);background:rgba(245,220,80,.05)}
+  .pq-normal{border-color:rgba(255,255,255,.08)}
+
+  .success-screen{text-align:center;padding:80px 40px}
+  .success-emoji{font-size:4rem;margin-bottom:16px}
+  .success-title{font-size:1.4rem;font-weight:700;color:var(--green);margin-bottom:8px}
+  .success-sub{font-size:14px;color:var(--muted);margin-bottom:24px}
+
+  .grid-bg{position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(46,204,113,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(46,204,113,.04) 1px,transparent 1px);background-size:48px 48px;-webkit-mask-image:radial-gradient(ellipse at center,black 30%,transparent 75%);mask-image:radial-gradient(ellipse at center,black 30%,transparent 75%);z-index:0}
+  .content{position:relative;z-index:1}
+
+  @media(max-width:760px){
+    .nav{padding:14px 20px}.nav-links{display:none}
+    .panel{padding:16px 20px}
+    .track-grid,.checkout-grid,.cart-grid,.admin-grid,.stats-row{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="content">
+
+<header class="nav">
+  <div class="logo">
+    <span>⚡</span>
+    <span class="font-display" style="color:var(--neon);font-size:16px">DRIVEX</span>
+    <span style="color:var(--border);margin:0 8px">|</span>
+    <span class="green" style="font-size:15px;font-weight:700">🛒 FreshCart</span>
+  </div>
+  <nav class="nav-links">
+    <a href="#" onclick="switchTab('shop')">Shop</a>
+    <a href="#" onclick="switchTab('cart')">Cart</a>
+    <a href="#" onclick="switchTab('tracking')">Tracking</a>
+    <span>OS Scheduling Demo</span>
+  </nav>
+  <div class="nav-right">
+    <button class="cart-btn" onclick="switchTab('cart')">🛒 Cart (<span id="nav-cart-count">0</span>)</button>
+    <a href="index.html" class="back-link">← DriveX Home</a>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" id="tab-btn-shop" onclick="switchTab('shop')">🛍️ Shop</button>
+  <button class="tab" id="tab-btn-cart" onclick="switchTab('cart')">🛒 Cart (<span id="tab-cart-count">0</span>)</button>
+  <button class="tab" id="tab-btn-checkout" onclick="switchTab('checkout')">📋 Checkout</button>
+  <button class="tab" id="tab-btn-tracking" onclick="switchTab('tracking')">📍 Track Order</button>
+  <button class="tab" id="tab-btn-admin" onclick="switchTab('admin');renderAdmin()">⚙️ Admin</button>
+</div>
+
+<!-- SHOP -->
+<div id="panel-shop" class="panel active">
+  <div class="shop-header">
+    <div>
+      <h2 style="font-size:1.4rem;font-weight:700">Fresh Grocery <span class="green">Delivery</span></h2>
+      <p style="color:var(--muted);font-size:13px;margin-top:4px">30-Minute Delivery Guarantee Across Karachi</p>
+    </div>
+    <div style="text-align:right;font-size:12px;color:var(--muted)">
+      <div>🛵 5 Riders Active</div>
+      <div style="color:var(--green);margin-top:2px">⚡ OS Scheduling: Round Robin</div>
+    </div>
+  </div>
+  <div class="cat-pills">
+    <button class="pill active" onclick="filterCat('all',this)">All Items</button>
+    <button class="pill" onclick="filterCat('dairy',this)">🥛 Dairy</button>
+    <button class="pill" onclick="filterCat('staple',this)">🌾 Staples</button>
+    <button class="pill" onclick="filterCat('breakfast',this)">🍳 Breakfast</button>
+    <button class="pill" onclick="filterCat('beverages',this)">☕ Beverages</button>
+  </div>
+  <div class="items-grid" id="items-grid"></div>
+</div>
+
+<!-- CART -->
+<div id="panel-cart" class="panel">
+  <div class="cart-grid">
+    <div>
+      <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:18px">Your Cart <span id="cart-heading-count" style="color:var(--muted);font-size:14px;font-weight:400"></span></h2>
+      <div id="cart-body"><div class="cart-empty">🛒 Cart is empty, add items!</div></div>
+    </div>
+    <div>
+      <div class="summary-card">
+        <p class="section-label" style="margin-bottom:14px">Order Summary</p>
+        <div id="summary-rows"></div>
+        <div class="sum-row" style="border-top:1px solid var(--border);margin-top:4px">
+          <span style="color:var(--muted)">Delivery Fee</span><span>Rs. 50</span>
+        </div>
+        <div class="sum-total">
+          <span>Total</span><span id="sum-total-val">Rs. 50</span>
+        </div>
+        <button class="btn-checkout" id="btn-checkout" onclick="goCheckout()">Proceed to Checkout →</button>
+        <button class="btn-checkout" onclick="clearCart()" style="margin-top:8px;background:transparent;color:var(--muted);border:1px solid var(--border)">Clear Cart</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CHECKOUT -->
+<div id="panel-checkout" class="panel">
+  <div id="checkout-form-area">
+    <div class="checkout-grid">
+      <div>
+        <div class="form-card">
+          <h3>📍 Delivery Details</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="form-group"><label>NAME *</label><input type="text" id="f-name" placeholder="Example: Ali Hassan"></div>
+            <div class="form-group"><label>Phone Number *</label><input type="text" id="f-phone" placeholder="+92 300 1234567"></div>
+          </div>
+          <div class="form-group"><label>Delivery Address *</label><input type="text" id="f-address" placeholder="Enter your complete home address"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="form-group"><label>CITY</label><input type="text" id="f-city" placeholder="Karachi"></div>
+            <div class="form-group"><label>ZIP Code</label><input type="text" id="f-zip" placeholder="75500"></div>
+          </div>
+          <button class="loc-btn" onclick="getGPSLocation()">📍 Live GPS Location</button>
+          <div class="loc-status" id="loc-status"></div>
+        </div>
+
+        <div class="form-card" style="margin-top:16px">
+          <h3>💳 Payment Method</h3>
+          <div class="pay-opts">
+            <div class="pay-opt sel" id="pay-cod" onclick="selectPayment('cod')"><input type="radio" name="pay" checked> <span class="pay-label">💵 Cash on Delivery</span><span class="pay-sub">Available everywhere</span></div>
+            <div class="pay-opt" id="pay-card" onclick="selectPayment('card')"><input type="radio" name="pay"> <span class="pay-label">💳 Debit/Credit Card</span><span class="pay-sub">Visa, Mastercard</span></div>
+            <div class="pay-opt" id="pay-jc" onclick="selectPayment('jc')"><input type="radio" name="pay"> <span class="pay-label">📱 JazzCash / EasyPaisa</span><span class="pay-sub">Mobile wallet</span></div>
+            <div class="pay-opt" id="pay-bank" onclick="selectPayment('bank')"><input type="radio" name="pay"> <span class="pay-label">🏦 Bank Transfer</span><span class="pay-sub">IBT / IBFT</span></div>
+          </div>
+        </div>
+
+        <div class="priority-card">
+          <h3>⚡ Delivery Priority (OS Scheduling)</h3>
+          <div class="priority-opts">
+            <div class="p-opt sel" id="prio-normal" onclick="selectPriority('normal')">
+              <div class="p-opt-title">📋 Normal Delivery — FCFS</div>
+              <div class="p-opt-sub">First Come First Serve · Standard delivery · Free</div>
+            </div>
+            <div class="p-opt" id="prio-express" onclick="selectPriority('express')">
+              <div class="p-opt-title">⚡ Express Delivery — Priority Queue</div>
+              <div class="p-opt-sub">Added to urgent queue · +Rs. 30</div>
+            </div>
+            <div class="p-opt" id="prio-urgent" onclick="selectPriority('urgent')">
+              <div class="p-opt-title">🔴 Urgent / Emergency — Highest Priority</div>
+              <div class="p-opt-sub">Fast delivery · +Rs. 80</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="order-summary-card">
+          <p class="section-label" style="margin-bottom:14px">Order Summary</p>
+          <div class="order-items-list" id="checkout-items-list"></div>
+          <div class="sum-row"><span style="color:var(--muted)">Items</span><span id="co-items">Rs. 0</span></div>
+          <div class="sum-row"><span style="color:var(--muted)">Delivery</span><span id="co-del">Rs. 50</span></div>
+          <div class="sum-row"><span style="color:var(--muted)">Priority Fee</span><span id="co-priority">Rs. 0</span></div>
+          <div class="sum-total"><span>Total</span><span id="co-total">Rs. 50</span></div>
+          <button class="btn-place" onclick="placeOrder()">🚀 Place Order</button>
+          <div id="order-err" style="color:#e74c3c;font-size:12px;margin-top:8px;min-height:16px"></div>
+        </div>
+
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-top:14px">
+          <p class="section-label" style="margin-bottom:10px">OS Scheduling Info</p>
+          <div id="algo-preview" style="font-size:12px;color:var(--muted);line-height:1.8"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TRACKING -->
+<div id="panel-tracking" class="panel">
+  <div id="no-order-state" style="text-align:center;padding:80px;color:var(--muted)">
+    <div style="font-size:3rem;margin-bottom:16px">📦</div>
+    <div style="font-size:16px;margin-bottom:8px">Place an order</div>
+    <div style="font-size:13px">THEN TRACK YOUR ORDER!</div>
+    <button onclick="switchTab('shop')" style="margin-top:20px;padding:10px 24px;border-radius:999px;border:1px solid var(--green-border);background:transparent;color:var(--green);cursor:pointer;font-size:13px;font-family:inherit">SHOP NOW→</button>
+  </div>
+  <div id="tracking-live" style="display:none">
+    <div class="track-hero">
+      <div class="track-order-id" id="track-order-id">ORD-000</div>
+      <div id="track-status-text" style="font-size:16px;font-weight:600;color:var(--green);margin-bottom:14px">Order Placed!</div>
+      <div class="steps-bar">
+        <div class="step-item"><div style="display:flex;flex-direction:column;align-items:center"><div class="step-dot curr" id="sdot-1">✓</div><div class="step-label">Placed</div></div></div>
+        <div class="step-connector" id="scon-1"></div>
+        <div class="step-item"><div style="display:flex;flex-direction:column;align-items:center"><div class="step-dot" id="sdot-2">2</div><div class="step-label">Assigned</div></div></div>
+        <div class="step-connector" id="scon-2"></div>
+        <div class="step-item"><div style="display:flex;flex-direction:column;align-items:center"><div class="step-dot" id="sdot-3">3</div><div class="step-label">Picked Up</div></div></div>
+        <div class="step-connector" id="scon-3"></div>
+        <div class="step-item"><div style="display:flex;flex-direction:column;align-items:center"><div class="step-dot" id="sdot-4">4</div><div class="step-label">On the Way</div></div></div>
+        <div class="step-connector" id="scon-4"></div>
+        <div class="step-item"><div style="display:flex;flex-direction:column;align-items:center"><div class="step-dot" id="sdot-5">🎉</div><div class="step-label">Delivered</div></div></div>
+      </div>
+    </div>
+    <div class="track-grid">
+      <div class="track-card" style="grid-column:span 1">
+        <h4>Live Rider Location</h4>
+        <div class="map-area">
+          <div class="road-line"></div>
+          <div class="rider-dot" id="rider-dot" style="left:8%">🛵</div>
+          <div class="home-dot" title="Your Home"></div>
+          <div style="position:absolute;bottom:4px;left:6px;font-size:9px;color:var(--green);font-family:'Space Grotesk',sans-serif">🚀 Rider</div>
+          <div style="position:absolute;bottom:4px;right:6px;font-size:9px;color:#e74c3c;font-family:'Space Grotesk',sans-serif">🏠 Ghar</div>
+        </div>
+        <div id="track-rider-info" style="font-size:12px;color:var(--muted);line-height:1.8"></div>
+        <div class="eta-badge" id="eta-val">20 min</div>
+        <div class="eta-label">Estimated Delivery Time</div>
+      </div>
+      <div class="track-card">
+        <h4>Rider Details</h4>
+        <div id="rider-details" style="font-size:13px;line-height:2"></div>
+      </div>
+      <div class="track-card">
+        <h4>OS Scheduling Log</h4>
+        <div id="sched-log" style="font-size:12px;color:var(--muted);line-height:1.9"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div id="panel-admin" class="panel">
+  <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:16px">Admin Dashboard <span style="color:var(--muted);font-size:13px;font-weight:400">— Live Monitoring</span></h2>
+  <div class="stats-row">
+    <div class="stat-box"><div class="stat-num green" id="st-total">0</div><div class="stat-lbl">Total Orders</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:var(--neon)" id="st-pending">0</div><div class="stat-lbl">Pending</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:#2ecc71" id="st-done">0</div><div class="stat-lbl">Completed</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:#3498db">5</div><div class="stat-lbl">Active Riders</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:#e74c3c" id="st-urgent">0</div><div class="stat-lbl">Urgent Orders</div></div>
+  </div>
+  <div class="admin-grid">
+    <div class="riders-panel"><h4>🛵 Riders — Round Robin</h4><div id="riders-list"></div></div>
+    <div class="orders-panel">
+      <h4>📋 Orders Queue</h4>
+      <div style="overflow-x:auto">
+        <table class="orders-table">
+          <thead><tr><th>Order ID</th><th>Customer</th><th>Items</th><th>Rider</th><th>Priority</th><th>Status</th><th>Time</th></tr></thead>
+          <tbody id="orders-tbody"><tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted)">No orders yet</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="algo-panel">
+    <h4>⚙️ OS Scheduling Algorithms</h4>
+    <div class="algo-tabs">
+      <button class="algo-tab active" onclick="showAlgo('rr',this)">🔄 Round Robin</button>
+      <button class="algo-tab" onclick="showAlgo('fcfs',this)">📋 FCFS</button>
+      <button class="algo-tab" onclick="showAlgo('priority',this)">⚡ Priority</button>
+    </div>
+    <div id="algo-info-box" class="algo-info"></div>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<script>
+const ITEMS = [
+  {id:1, name:'Eggs',        emoji:'🥚', price:320, weight:'12 pcs',   cat:'breakfast'},
+  {id:2, name:'Milk',        emoji:'🥛', price:180, weight:'1 litre',  cat:'dairy'},
+  {id:3, name:'Bread',       emoji:'🍞', price:90,  weight:'400g',     cat:'breakfast'},
+  {id:4, name:'Rice (Basmati)',emoji:'🍚',price:250, weight:'1 kg',    cat:'staple'},
+  {id:5, name:'Sugar',       emoji:'🍬', price:130, weight:'1 kg',     cat:'staple'},
+  {id:6, name:'Tea Leaves',  emoji:'🍃', price:400, weight:'200g',     cat:'beverages'},
+  {id:7, name:'Flour (Atta)',emoji:'🌾', price:200, weight:'1 kg',     cat:'staple'},
+  {id:8, name:'Cooking Oil', emoji:'🫙', price:550, weight:'1 litre',  cat:'staple'},
+  {id:9, name:'Butter',      emoji:'🧈', price:280, weight:'200g',     cat:'dairy'},
+  {id:10,name:'Cheese',      emoji:'🧀', price:350, weight:'200g',     cat:'dairy'},
+  {id:11,name:'Yogurt',      emoji:'🥣', price:120, weight:'500g',     cat:'dairy'},
+  {id:12,name:'Salt',        emoji:'🧂', price:50,  weight:'1 kg',     cat:'staple'},
+  {id:13,name:'Green Tea',   emoji:'🍵', price:280, weight:'25 bags',  cat:'beverages'},
+  {id:14,name:'Bananas',     emoji:'🍌', price:80,  weight:'1 dozen',  cat:'breakfast'},
+  {id:15,name:'Tomatoes',    emoji:'🍅', price:90,  weight:'500g',     cat:'staple'},
+  {id:16,name:'Coffee',      emoji:'☕', price:650, weight:'200g',     cat:'beverages'},
+];
+
+const RIDERS = [
+  {id:0, name:'Rider 1 — Hasan',  phone:'0300-1111111'},
+  {id:1, name:'Rider 2 — Bilal',  phone:'0300-2222222'},
+  {id:2, name:'Rider 3 — Kamran', phone:'0300-3333333'},
+  {id:3, name:'Rider 4 — Imran',  phone:'0300-4444444'},
+  {id:4, name:'Rider 5 — Farhan', phone:'0300-5555555'},
+];
+
+let cart     = {};
+let orders   = [];
+let rrIndex  = 0;
+let riderOrderCounts = [0,0,0,0,0];
+let riderBusy = [false,false,false,false,false];
+let orderSeq  = 1;
+let selectedPayment  = 'cod';
+let selectedPriority = 'normal';
+let currentOrderId   = null;
+let trackInterval    = null;
+let trackStep        = 0;
+let originalCheckoutHTML = '';
+
+function switchTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.getElementById('tab-btn-' + name).classList.add('active');
+  if (name === 'admin') renderAdmin();
+  if (name === 'cart') renderCart();
+  if (name === 'checkout') renderCheckoutSummary();
+}
+
+function filterCat(cat, btn) {
+  document.querySelectorAll('.cat-pills .pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderItems(cat);
+}
+
+function renderItems(cat = 'all') {
+  const list = cat === 'all' ? ITEMS : ITEMS.filter(i => i.cat === cat);
+  document.getElementById('items-grid').innerHTML = list.map(item => `
+    <div class="item-card ${cart[item.id] ? 'selected' : ''}" id="ic-${item.id}">
+      <span class="item-emoji">${item.emoji}</span>
+      <div class="item-name">${item.name}</div>
+      <div class="item-weight">${item.weight}</div>
+      <div class="item-price">Rs. ${item.price}</div>
+      <div class="qty-row">
+        <button class="qty-btn" onclick="changeQty(${item.id},-1)">−</button>
+        <span class="qty-val" id="qty-${item.id}">${cart[item.id] || 0}</span>
+        <button class="qty-btn" onclick="changeQty(${item.id},1)">+</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function changeQty(id, d) {
+  cart[id] = (cart[id] || 0) + d;
+  if (cart[id] <= 0) delete cart[id];
+  const qEl = document.getElementById('qty-' + id);
+  if (qEl) qEl.textContent = cart[id] || 0;
+  const ic = document.getElementById('ic-' + id);
+  if (ic) ic.classList.toggle('selected', !!cart[id]);
+  updateCartBadge();
+}
+
+function cartCount() { return Object.values(cart).reduce((a, b) => a + b, 0); }
+function cartTotal() {
+  return Object.keys(cart).reduce((a, id) => {
+    const it = ITEMS.find(i => i.id == id);
+    return a + (it ? it.price * cart[id] : 0);
+  }, 0);
+}
+function updateCartBadge() {
+  const c = cartCount();
+  document.getElementById('nav-cart-count').textContent = c;
+  document.getElementById('tab-cart-count').textContent = c;
+}
+
+function renderCart() {
+  const keys = Object.keys(cart);
+  const body = document.getElementById('cart-body');
+  const tot = cartTotal();
+  document.getElementById('cart-heading-count').textContent = keys.length ? `(${cartCount()} items)` : '';
+  if (!keys.length) {
+    body.innerHTML = '<div class="cart-empty">🛒 Your cart is empty — add some items first!</div>';
+    document.getElementById('summary-rows').innerHTML = '';
+    document.getElementById('sum-total-val').textContent = 'Rs. 50';
+    document.getElementById('btn-checkout').disabled = true;
+    return;
+  }
+  body.innerHTML = `<table class="cart-table">
+    <thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Subtotal</th><th></th></tr></thead>
+    <tbody>
+    ${keys.map(id => {
+      const it = ITEMS.find(i => i.id == id);
+      return `<tr>
+        <td>${it.emoji} ${it.name}</td>
+        <td><div class="qty-row" style="justify-content:flex-start">
+          <button class="qty-btn" onclick="changeQty(${id},-1);renderCart()">−</button>
+          <span class="qty-val">${cart[id]}</span>
+          <button class="qty-btn" onclick="changeQty(${id},1);renderCart()">+</button>
+        </div></td>
+        <td>Rs. ${it.price}</td>
+        <td style="color:var(--green);font-weight:600">Rs. ${it.price * cart[id]}</td>
+        <td><button onclick="delete cart[${id}];renderCart();updateCartBadge()" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:16px">✕</button></td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+  </table>`;
+  document.getElementById('summary-rows').innerHTML = keys.map(id => {
+    const it = ITEMS.find(i => i.id == id);
+    return `<div class="sum-row"><span style="color:var(--muted)">${it.emoji} ${it.name} x${cart[id]}</span><span>Rs. ${it.price * cart[id]}</span></div>`;
+  }).join('');
+  document.getElementById('sum-total-val').textContent = 'Rs. ' + (tot + 50);
+  document.getElementById('btn-checkout').disabled = false;
+}
+
+function clearCart() {
+  cart = {};
+  renderItems('all');
+  renderCart();
+  updateCartBadge();
+  originalCheckoutHTML = document.getElementById('checkout-form-area').innerHTML;
+}
+
+function goCheckout() {
+  if (cartCount() === 0) {
+    alert('Cart is empty!');
+    return;
+  }
+  renderCheckoutSummary();
+  switchTab('checkout');
+}
+
+// ── THE MISSING FUNCTION — this was the root cause of the bug ──
+function updateAlgoPreview() {
+  const el = document.getElementById('algo-preview');
+  if (!el) return;
+  const pLabels = {
+    normal:  { icon:'📋', name:'FCFS (Normal)',  desc:'Your order joins the standard queue. Assigned via Round Robin to the next available rider.' },
+    express: { icon:'⚡', name:'Priority Queue (Express)', desc:'Your order is elevated in the queue. A nearby free rider is assigned first.' },
+    urgent:  { icon:'🔴', name:'Highest Priority (Urgent)', desc:'Your order jumps to the front of the queue. The first free rider is dispatched immediately.' }
+  };
+  const p = pLabels[selectedPriority] || pLabels.normal;
+  const nextRider = RIDERS[rrIndex % 5].name;
+  el.innerHTML = `
+    <div style="color:var(--neon);font-weight:600;margin-bottom:6px">${p.icon} ${p.name}</div>
+    <div>${p.desc}</div>
+    <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+      🔄 Next RR Rider: <strong style="color:var(--green)">${nextRider}</strong>
+    </div>`;
+}
+
+function renderCheckoutSummary() {
+  const keys = Object.keys(cart);
+  const tot  = cartTotal();
+  const fee  = selectedPriority === 'urgent' ? 80 : selectedPriority === 'express' ? 30 : 0;
+  document.getElementById('co-items').textContent    = 'Rs. ' + tot;
+  document.getElementById('co-del').textContent      = 'Rs. 50';
+  document.getElementById('co-priority').textContent = fee ? 'Rs. ' + fee : 'Free';
+  document.getElementById('co-total').textContent    = 'Rs. ' + (tot + 50 + fee);
+  document.getElementById('checkout-items-list').innerHTML = keys.map(id => {
+    const it = ITEMS.find(i => i.id == id);
+    return `<div class="oi-row"><span>${it.emoji} ${it.name} x${cart[id]}</span><span>Rs. ${it.price * cart[id]}</span></div>`;
+  }).join('') || '<div style="color:var(--muted);font-size:12px;padding:8px 0">No items</div>';
+  updateAlgoPreview();
+}
+
+function selectPayment(p) {
+  selectedPayment = p;
+  ['cod','card','jc','bank'].forEach(x => document.getElementById('pay-'+x).classList.remove('sel'));
+  document.getElementById('pay-'+p).classList.add('sel');
+}
+
+function selectPriority(p) {
+  selectedPriority = p;
+  ['normal','express','urgent'].forEach(x => document.getElementById('prio-'+x).classList.remove('sel'));
+  document.getElementById('prio-'+p).classList.add('sel');
+  const fee = p === 'urgent' ? 80 : p === 'express' ? 30 : 0;
+  document.getElementById('co-priority').textContent = fee ? 'Rs. ' + fee : 'Free';
+  document.getElementById('co-del').textContent = 'Rs. 50';
+  document.getElementById('co-total').textContent = 'Rs. ' + (cartTotal() + 50 + fee);
+  updateAlgoPreview();
+}
+
+function getGPSLocation() {
+  const statusEl = document.getElementById('loc-status');
+  if (!navigator.geolocation) { statusEl.textContent = '❌ GPS is not supported by your browser'; return; }
+  statusEl.textContent = '📍 Fetching GPS location...';
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      statusEl.textContent = `✅ Location found: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      if (!document.getElementById('f-city').value) document.getElementById('f-city').value = 'Karachi';
+    },
+    () => { statusEl.textContent = '❌ Location access denied — please enter your address manually'; }
+  );
+}
+
+function placeOrder() {
+  const name    = document.getElementById('f-name').value.trim();
+  const phone   = document.getElementById('f-phone').value.trim();
+  const address = document.getElementById('f-address').value.trim();
+  const errEl   = document.getElementById('order-err');
+  if (!name || !phone || !address) {
+    errEl.textContent = '⚠ Please fill in your name, phone number, and address!';
+    return;
+  }
+  if (!cartCount()) { errEl.textContent = '⚠ Cart is empty!'; return; }
+  errEl.textContent = '';
+
+  const riderIdx = assignRiderByScheduling(selectedPriority);
+  const fee = selectedPriority === 'urgent' ? 80 : selectedPriority === 'express' ? 30 : 0;
+
+  const order = {
+    id: 'ORD-' + String(orderSeq++).padStart(3,'0'),
+    name, phone, address,
+    city: document.getElementById('f-city').value || 'Karachi',
+    zip:  document.getElementById('f-zip').value  || '-',
+    items: Object.keys(cart).map(id => {
+      const it = ITEMS.find(i => i.id == id);
+      return { name: it.name, emoji: it.emoji, qty: cart[id], price: it.price };
+    }),
+    total:    cartTotal() + 50 + fee,
+    payment:  selectedPayment,
+    priority: selectedPriority,
+    riderIdx,
+    rider:    RIDERS[riderIdx],
+    status:   'Assigned',
+    time:     new Date().toLocaleTimeString(),
+    timestamp: Date.now()
+  };
+
+  orders.push(order);
+  riderOrderCounts[riderIdx]++;
+  riderBusy[riderIdx] = true;
+  currentOrderId = order.id;
+
+  cart = {};
+  renderItems('all');
+  updateCartBadge();
+  showOrderSuccess(order);
+}
+
+function assignRiderByScheduling(priority) {
+  let idx = rrIndex % 5;
+  rrIndex++;
+  if (priority === 'urgent') {
+    for (let i = 0; i < 5; i++) { if (!riderBusy[i]) return i; }
+  } else if (priority === 'express') {
+    for (let i = 0; i < 5; i++) {
+      const candidate = (idx + i) % 5;
+      if (!riderBusy[candidate]) return candidate;
+    }
+  }
+  return idx;
+}
+
+function showOrderSuccess(order) {
+  document.getElementById('checkout-form-area').innerHTML = `
+    <div class="success-screen">
+      <div class="success-emoji">🎉</div>
+      <div class="success-title">Order Placed!</div>
+      <div class="success-sub">
+        Order ID: <strong style="color:var(--green)">${order.id}</strong><br>
+        ${order.rider.name} will deliver your order 🛵<br>
+        <span style="font-size:12px;color:var(--muted)">Algorithm: ${order.priority.toUpperCase()} Priority — Round Robin Assignment</span>
+      </div>
+      <button onclick="goTracking('${order.id}')" style="padding:12px 28px;border-radius:999px;border:none;background:var(--green);color:#0d0d0a;font-weight:700;cursor:pointer;font-size:14px;font-family:inherit">📍 Track Live →</button>
+    </div>`;
+  setTimeout(() => goTracking(order.id), 1800);
+}
+
+function goTracking(orderId) {
+  switchTab('tracking');
+  const order = orders.find(o => o.id === orderId);
+  if (!order) return;
+  startTracking(order);
+}
+
+function startTracking(order) {
+  clearInterval(trackInterval);
+  trackStep = 1;
+  document.getElementById('no-order-state').style.display = 'none';
+  document.getElementById('tracking-live').style.display  = 'block';
+  document.getElementById('track-order-id').textContent = order.id + ' — ' + order.rider.name;
+  renderTrackStep(order, 1);
+  trackInterval = setInterval(() => {
+    trackStep++;
+    renderTrackStep(order, trackStep);
+    if (trackStep >= 5) {
+      clearInterval(trackInterval);
+      order.status = 'Delivered';
+      riderBusy[order.riderIdx] = false;
+    }
+  }, 4500);
+}
+
+function renderTrackStep(order, step) {
+  const labels   = ['','Order Placed','Rider Assigned','Items Picked Up','On the Way','Delivered! 🎉'];
+  const etas     = ['','~20 min','~18 min','~14 min','~8 min','Delivered!'];
+  const riderPos = ['8%','22%','40%','62%','88%'];
+
+  document.getElementById('track-status-text').textContent = labels[step] || 'Processing...';
+  document.getElementById('eta-val').textContent = etas[step] || '-';
+
+  for (let i = 1; i <= 5; i++) {
+    const dot = document.getElementById('sdot-' + i);
+    if (i < step)       { dot.className = 'step-dot done'; dot.textContent = '✓'; }
+    else if (i === step){ dot.className = 'step-dot curr'; dot.textContent = i === 5 ? '🎉' : i; }
+    else                { dot.className = 'step-dot';      dot.textContent = i === 5 ? '🎉' : i; }
+  }
+  for (let i = 1; i <= 4; i++) {
+    const con = document.getElementById('scon-' + i);
+    if (con) con.classList.toggle('done', i < step);
+  }
+
+  const rd = document.getElementById('rider-dot');
+  if (rd) rd.style.left = riderPos[step - 1] || '8%';
+
+  document.getElementById('track-rider-info').innerHTML = `🛵 ${order.rider.name}<br>📞 ${order.rider.phone}`;
+  document.getElementById('rider-details').innerHTML = `
+    <div><strong>Rider:</strong> ${order.rider.name}</div>
+    <div><strong>Phone:</strong> ${order.rider.phone}</div>
+    <div><strong>Order ID:</strong> ${order.id}</div>
+    <div><strong>Customer:</strong> ${order.name}</div>
+    <div><strong>Address:</strong> ${order.address}</div>
+    <div><strong>Total:</strong> Rs. ${order.total}</div>
+    <div><strong>Payment:</strong> ${order.payment.toUpperCase()}</div>
+  `;
+  document.getElementById('sched-log').innerHTML = `
+    <div style="color:var(--neon);margin-bottom:6px">⚙️ Scheduling Log</div>
+    <div>Algorithm: <strong>Round Robin</strong></div>
+    <div>Priority: <strong style="color:${order.priority==='urgent'?'#e74c3c':order.priority==='express'?'var(--neon)':'var(--green)'}">${order.priority.toUpperCase()}</strong></div>
+    <div>RR Index: <strong>${order.riderIdx + 1} / 5</strong></div>
+    <div>Rider: <strong>${order.rider.name}</strong></div>
+    <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+      FCFS Queue Position: #${orders.findIndex(o=>o.id===order.id)+1}<br>
+      Priority Queue: ${order.priority==='urgent'?'🔴 HEAD':order.priority==='express'?'🟡 MIDDLE':'⚪ TAIL'}<br>
+      Burst Time (est.): ${20-(step-1)*4} min remaining
+    </div>
+  `;
+}
+
+function renderAdmin() {
+  const total   = orders.length;
+  const pending = orders.filter(o => o.status !== 'Delivered').length;
+  const done    = orders.filter(o => o.status === 'Delivered').length;
+  const urgent  = orders.filter(o => o.priority === 'urgent').length;
+  document.getElementById('st-total').textContent   = total;
+  document.getElementById('st-pending').textContent = pending;
+  document.getElementById('st-done').textContent    = done;
+  document.getElementById('st-urgent').textContent  = urgent;
+
+  document.getElementById('riders-list').innerHTML = RIDERS.map(r => `
+    <div class="rider-row">
+      <div class="rider-avatar">R${r.id+1}</div>
+      <div class="rider-info">
+        <div class="rider-name">${r.name}</div>
+        <div class="rider-orders">${riderOrderCounts[r.id]} orders completed</div>
+      </div>
+      <span class="badge ${riderBusy[r.id]?'badge-amber':'badge-green'}">${riderBusy[r.id]?'Busy':'Free'}</span>
+    </div>
+  `).join('');
+
+  const tbody = document.getElementById('orders-tbody');
+  if (!orders.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted)">No orders yet</td></tr>';
+  } else {
+    tbody.innerHTML = orders.slice().reverse().map(o => `
+      <tr>
+        <td class="order-id-cell">${o.id}</td>
+        <td>${o.name}</td>
+        <td style="font-size:11px">${o.items.map(i=>i.emoji+i.name).join(', ')}</td>
+        <td>${o.rider.name}</td>
+        <td><span class="badge ${o.priority==='urgent'?'badge-red':o.priority==='express'?'badge-amber':'badge-gray'}">${o.priority}</span></td>
+        <td><span class="badge ${o.status==='Delivered'?'badge-green':'badge-amber'}">${o.status}</span></td>
+        <td style="color:var(--muted);font-size:11px">${o.time}</td>
+      </tr>
+    `).join('');
+  }
+  showAlgo('rr', document.querySelector('.algo-tab.active') || document.querySelector('.algo-tab'));
+}
+
+function showAlgo(algo, btn) {
+  document.querySelectorAll('.algo-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const nextRider = RIDERS[rrIndex % 5].name;
+  const infos = {
+    rr: `
+      <div class="algo-title">🔄 Round Robin Scheduling</div>
+      <div class="algo-desc">
+        Orders are assigned to riders in a cycle. No rider becomes overloaded — work is distributed evenly.<br><br>
+        <strong>Formula:</strong> Order N → Rider (N mod 5)<br>
+        <strong>Next Assignment:</strong> ${nextRider}<br>
+        <strong>Time Quantum:</strong> 1 order per rider
+      </div>
+      <div class="rr-visualizer">
+        ${RIDERS.map((r,i) => `<div class="rr-cell ${i===rrIndex%5?'next':'done'}">R${i+1}</div>`).join('')}
+        <span style="font-size:11px;color:var(--muted);margin-left:6px">← Next: ${nextRider}</span>
+      </div>`,
+    fcfs: `
+      <div class="algo-title">📋 FCFS — First Come First Serve</div>
+      <div class="algo-desc">
+        The order that arrives first is processed first — FIFO (First In, First Out).<br><br>
+        <strong>Property:</strong> Non-preemptive<br>
+        <strong>Advantage:</strong> Simple, fair<br>
+        <strong>Disadvantage:</strong> Convoy effect possible
+      </div>
+      <div class="fcfs-queue">
+        ${orders.length ? orders.map((o,i) => `
+          <div class="fcfs-item ${i===0?'head':''}">${o.id}<br><span style="font-size:9px;color:var(--muted)">${o.time}</span></div>`).join('→')
+          : '<div class="fcfs-item">Queue is empty</div>'}
+      </div>`,
+    priority: `
+      <div class="algo-title">⚡ Priority Scheduling</div>
+      <div class="algo-desc">
+        Every order is assigned a priority. Urgent > Express > Normal.<br><br>
+        <strong>🔴 Urgent:</strong> Highest Priority (P=1)<br>
+        <strong>🟡 Express:</strong> Medium Priority (P=2)<br>
+        <strong>⚪ Normal:</strong> Low Priority (P=3)
+      </div>
+      <div class="priority-queue">
+        ${orders.filter(o=>o.priority==='urgent').map(o=>`<div class="pq-item pq-urgent">🔴 ${o.id} — ${o.name} (URGENT)</div>`).join('')}
+        ${orders.filter(o=>o.priority==='express').map(o=>`<div class="pq-item pq-express">🟡 ${o.id} — ${o.name} (Express)</div>`).join('')}
+        ${orders.filter(o=>o.priority==='normal').map(o=>`<div class="pq-item pq-normal">⚪ ${o.id} — ${o.name} (Normal)</div>`).join('')}
+        ${!orders.length ? '<div class="pq-item pq-normal" style="color:var(--muted)">The queue is empty</div>' : ''}
+      </div>`
+  };
+  document.getElementById('algo-info-box').innerHTML = infos[algo] || infos.rr;
+}
+
+// Init
+renderItems('all');
+updateCartBadge();
+updateAlgoPreview();
+</script>
+</body>
+</html>

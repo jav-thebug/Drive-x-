@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DRIVEX — Taxi of your dreams</title>
+<meta name="description" content="Modern ride-hailing reimagined. Dark, fast, and unmistakably neon." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Monoton&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0a;
+    --card: #161612;
+    --fg: #f5f3eb;
+    --muted: #8a8a80;
+    --border: rgba(245, 220, 80, 0.18);
+    --neon: #f5dc50;
+    --neon-strong: #ffe94a;
+    --neon-glow: 0 0 18px rgba(245, 220, 80, 0.55), 0 0 50px rgba(245, 220, 80, 0.3);
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; 
+    margin: 0; padding: 0; }
+
+  html, body { background: var(--bg); 
+    color: var(--fg); }
+
+  body { font-family: 'Space Grotesk', system-ui, sans-serif; 
+  line-height: 1.5;
+   overflow-x: hidden; 
+   min-height: 100vh; }
+
+
+  a { color: inherit;
+     text-decoration: none; }
+
+  img { max-width: 100%; 
+    display: block; }
+
+  button { 
+    font-family: inherit; }
+
+  .font-display { font-family: 'Monoton', sans-serif; 
+  letter-spacing: 0.04em;
+   font-weight: 400; }
+
+  .neon-text { color: var(--neon); 
+    text-shadow: var(--neon-glow); }
+
+
+  .pulse-glow { animation: pulse 2.5s ease-in-out infinite; }
+
+  .hidden { display: none !important; }
+
+  @keyframes pulse { 0%,100% { opacity: 0.65; } 50% { opacity: 1; } }
+  @keyframes floatCar { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+
+  .float-car { animation: floatCar 5s ease-in-out infinite; }
+
+  .grid-bg {
+    position: absolute; inset: 0; 
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(245,220,80,0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(245,220,80,0.07) 1px, transparent 1px);
+    background-size: 48px 48px;
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+            mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  }
+
+  .grid-bg.subtle { opacity: 0.4; }
+
+  /* NAV */
+  .nav { position: relative; 
+    z-index: 20; display: flex; 
+    align-items: center;
+     justify-content: space-between;
+      padding: 22px 48px; }
+
+  .logo { display: flex;
+     align-items: center;
+      gap: 8px;
+       color: var(--neon); 
+       font-size: 20px; }
+
+  .nav-links { display: flex; 
+    gap: 32px;
+     font-size: 14px;
+     color: var(--muted); }
+
+  .nav-links a:hover { color: var(--neon); }
+
+  .nav-right { display: flex; 
+    align-items: center;
+     gap: 12px; }
+
+  .btn-ghost {
+    background: transparent; 
+    color: var(--neon); 
+    border: 1px solid var(--neon);
+    padding: 9px 20px; 
+    border-radius: 999px; 
+    font-weight: 600; 
+    cursor: pointer;
+    font-size: 13px;
+     transition: 0.2s;
+  }
+
+  .btn-ghost:hover { background: var(--neon); color: #0d0d0a; }
+
+  .user-badge {
+    display: inline-flex; 
+    align-items: center;
+     gap: 8px;
+    background: rgba(245,220,80,0.1); 
+    border: 1px solid var(--border);
+    color: var(--neon); padding: 8px 16px; 
+    border-radius: 999px;
+    font-size: 13px; 
+    cursor: pointer;
+  }
+  .user-badge:hover { border-color: var(--neon); }
+
+  .btn-primary {
+    display: inline-flex; 
+    align-items: center; 
+    gap: 8px;
+    background: var(--neon);
+     color: #0d0d0a;
+    padding: 14px 28px; 
+    border-radius: 999px;
+    font-weight: 700;
+     cursor: pointer; 
+     border: 0;
+    box-shadow: var(--neon-glow); 
+    transition: transform 0.2s; 
+    font-size: 15px;
+  }
+
+  .btn-primary:hover { transform: scale(1.03); }
+
+  .btn-primary.big { padding: 16px 34px;
+     font-size: 16px; }
+
+  .btn-outline {
+    display: inline-flex; 
+    align-items: center; gap: 8px;
+    padding: 14px 28px; border-radius: 999px;
+    border: 1px solid var(--border); color: var(--fg);
+    font-weight: 600; transition: 0.2s; background: transparent; cursor: pointer;
+  }
+  .btn-outline:hover { border-color: var(--neon); color: var(--neon); }
+
+  /* HERO */
+  .hero { position: relative; }
+  .hero-glow { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 30%, rgba(245,220,80,0.18), transparent 60%); pointer-events: none; }
+  .hero-inner { position: relative; z-index: 10; max-width: 1200px; margin: 0 auto; padding: 40px 48px 120px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+  .badge { display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(245,220,80,0.4); background: rgba(245,220,80,0.05); color: var(--neon); padding: 6px 14px; border-radius: 999px; font-size: 12px; margin-bottom: 28px; }
+  .badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--neon); }
+  .hero-title { font-size: clamp(48px, 7vw, 88px); line-height: 1.05; margin-bottom: 22px; }
+  .hero-sub { font-size: 18px; color: var(--muted); max-width: 420px; margin-bottom: 36px; }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 14px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 420px; margin-top: 48px; }
+  .stat-num { font-size: 28px; }
+  .stat-lbl { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .hero-car-wrap { position: relative; display: flex; justify-content: center; align-items: center; min-height: 400px; }
+  .car-halo { position: absolute; width: 280px; height: 420px; border-radius: 50%; background: radial-gradient(ellipse, rgba(245,220,80,0.4), transparent 70%); filter: blur(40px); }
+  .car-beam { position: absolute; bottom: 20px; width: 240px; height: 8px; border-radius: 999px; background: var(--neon); box-shadow: var(--neon-glow); }
+  .hero-car { position: relative; z-index: 2; width: 320px; filter: drop-shadow(0 30px 40px rgba(0,0,0,0.6)); }
+
+  /* SECTION */
+  .section { position: relative; max-width: 1200px; margin: 0 auto; padding: 100px 48px; }
+  .section.bordered { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); max-width: none; }
+  .section.bordered .section-inner { max-width: 1200px; margin: 0 auto; position: relative; }
+  .section-title { font-size: clamp(32px, 4.5vw, 56px); margin-bottom: 14px; }
+  .section-sub { color: var(--muted); max-width: 560px; margin-bottom: 48px; font-size: 16px; }
+
+  /* SERVICES */
+  .services-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .service-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 26px; transition: 0.25s; cursor: pointer; }
+  .service-card:hover { border-color: var(--neon); transform: translateY(-4px); box-shadow: var(--neon-glow); }
+  .service-card.premium { background: linear-gradient(160deg, #1a1a14, #0d0d0a); border-color: rgba(245,220,80,0.4); }
+  .icon-box { width: 48px; height: 48px; border-radius: 12px; background: rgba(245,220,80,0.1); display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 18px; }
+  .service-card h3 { font-size: 18px; margin-bottom: 6px; }
+  .service-card p { color: var(--muted); font-size: 14px; margin-bottom: 14px; }
+  .price { color: var(--neon); font-weight: 600; font-size: 14px; }
+
+  /* REQUEST */
+  .request-card { position: relative; overflow: hidden; background: var(--card); border-radius: 24px; padding: 48px; }
+  .form { position: relative; display: flex; flex-direction: column; gap: 18px; max-width: 720px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+  input, select {
+    background: #0d0d0a; color: var(--fg);
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; font-family: inherit; font-size: 15px; transition: 0.2s;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--neon); box-shadow: 0 0 0 3px rgba(245,220,80,0.15); }
+  .form-msg { color: var(--neon); font-size: 14px; min-height: 20px; }
+
+  /* STEPS */
+  .steps { position: relative; display: grid; gap: 28px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+  .step-num { font-size: 56px; margin-bottom: 12px; }
+  .steps h3 { font-size: 22px; margin-bottom: 8px; }
+  .steps p { color: var(--muted); }
+
+  /* COURIER */
+  .courier-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+  .bullets { list-style: none; margin: 24px 0; }
+  .bullets li { padding: 10px 0; color: var(--fg); border-bottom: 1px dashed var(--border); }
+  .courier-art { position: relative; height: 320px; border-radius: 24px; background: var(--card); display: flex; align-items: center; justify-content: space-between; padding: 40px; font-size: 56px; }
+  .route-line { flex: 1; height: 2px; margin: 0 24px; background: repeating-linear-gradient(90deg, var(--neon), var(--neon) 8px, transparent 8px, transparent 16px); box-shadow: var(--neon-glow); }
+  .parcel, .pin { filter: drop-shadow(0 0 10px rgba(245,220,80,0.5)); }
+
+  /* CTA */
+  .cta-card { position: relative; overflow: hidden; background: var(--card); border-radius: 24px; padding: 64px 32px; text-align: center; border: 1px solid rgba(245,220,80,0.4); box-shadow: var(--neon-glow); }
+  .cta-card > * { position: relative; }
+
+  /* FOOTER */
+  .footer { border-top: 1px solid var(--border); padding: 32px 48px; display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 14px; }
+
+  /* MODAL */
+  .modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; }
+  .modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); }
+  .modal-card { position: relative; width: 100%; max-width: 440px; margin: 20px; background: var(--card); border: 1px solid rgba(245,220,80,0.3); border-radius: 20px; padding: 36px; box-shadow: var(--neon-glow); }
+  .modal-close { position: absolute; top: 14px; right: 14px; background: transparent; border: 0; color: var(--muted); font-size: 24px; cursor: pointer; width: 36px; height: 36px; border-radius: 50%; }
+  .modal-close:hover { color: var(--neon); background: rgba(245,220,80,0.08); }
+  .modal-title { font-size: 28px; margin-bottom: 6px; }
+  .modal-sub { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+  .auth-tabs { display: flex; gap: 8px; background: #0d0d0a; padding: 4px; border-radius: 12px; margin-bottom: 24px; border: 1px solid var(--border); }
+  .auth-tab { flex: 1; padding: 10px; background: transparent; border: 0; color: var(--muted); border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }
+  .auth-tab.active { background: var(--neon); color: #0d0d0a; box-shadow: var(--neon-glow); }
+  .auth-form { display: flex; flex-direction: column; gap: 14px; }
+  .auth-msg { font-size: 13px; min-height: 18px; }
+  .auth-msg.error { color: #ff7070; }
+  .auth-msg.success { color: var(--neon); }
+  .auth-switch { text-align: center; font-size: 13px; color: var(--muted); margin-top: 16px; }
+  .auth-switch button { background: transparent; border: 0; color: var(--neon); cursor: pointer; font-weight: 600; }
+
+  /* RESPONSIVE */
+  @media (max-width: 860px) {
+    .nav { padding: 20px 24px; }
+    .nav-links { display: none; }
+    .hero-inner { grid-template-columns: 1fr; padding: 20px 24px 80px; }
+    .hero-car { width: 240px; }
+    .section { padding: 70px 24px; }
+    .request-card { padding: 28px; }
+    .row { grid-template-columns: 1fr; }
+    .courier-wrap { grid-template-columns: 1fr; }
+    .footer { padding: 24px; flex-direction: column; gap: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<header class="nav">
+  <div class="logo font-display"><span>⚡</span><span class="neon-text">DRIVEX</span></div>
+  <nav class="nav-links">
+    <a href="#services">Services</a>
+    <a href="#request">Request</a>
+    <a href="#how">How it works</a>
+    <a href="#courier">Courier</a>
+    <a href="/grocery">Grocery</a>
+    <a href="/rent.html">Rent A Car</a>
+  </nav>
+  <div class="nav-right">
+    <button class="btn-ghost" id="navSignIn" data-auth-open="login">Sign in</button>
+    <div id="userBadge" class="user-badge hidden"></div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="grid-bg"></div>
+  <div class="hero-glow"></div>
+  <div class="hero-inner">
+    <div>
+      <div class="badge pulse-glow"><span class="dot"></span> Live in Karachi tonight</div>
+      <h1 class="font-display hero-title">Taxi of <br/>your <span class="neon-text">dreams</span>.</h1>
+      <p class="hero-sub">Tap. Ride. Glow. A new generation ride-hailing experience built for the cities that never sleep.</p>
+      <div class="cta-row">
+        <button class="btn-primary" data-auth-open="register">Get Started →</button>
+        <a href="#services" class="btn-outline">+ Explore services</a>
+      </div>
+      <div class="stats">
+        <div><div class="font-display neon-text stat-num">2.4M</div><div class="stat-lbl">Rides / month</div></div>
+        <div><div class="font-display neon-text stat-num">180s</div><div class="stat-lbl">Avg pickup</div></div>
+        <div><div class="font-display neon-text stat-num">4.9★</div><div class="stat-lbl">Driver rating</div></div>
+      </div>
+    </div>
+    <div class="hero-car-wrap">
+      <div class="car-halo"></div>
+      <div class="car-beam pulse-glow"></div>
+      <img src="hero-car.png" alt="Neon ride" class="hero-car float-car" />
+    </div>
+  </div>
+</section>
+
+<!-- SERVICES -->
+<section id="services" class="section">
+  <h2 class="font-display section-title">Pick your <span class="neon-text">ride</span>.</h2>
+  <p class="section-sub">From a quick bike dash to a premium glass-roof cruise — we've got every mood covered.</p>
+  <div class="services-grid">
+    <div class="service-card" data-service="Car · AC">
+      <div class="icon-box">❄️</div><h3>Car · AC</h3>
+      <p>Cool, comfortable sedans for everyday city rides.</p>
+      <div class="price">from 150 rs</div>
+    </div>
+    <div class="service-card" data-service="Car · Non-AC">
+      <div class="icon-box">🚗</div><h3>Car · Non-AC</h3>
+      <p>Budget-friendly rides without compromise on safety.</p>
+      <div class="price">from 120 rs</div>
+    </div>
+    <div class="service-card" data-service="Bike">
+      <div class="icon-box">🏍️</div><h3>Bike</h3>
+      <p>Beat the traffic. Fastest way across the city.</p>
+      <div class="price">from 80 rs</div>
+    </div>
+    <div class="service-card" data-service="Auto">
+      <div class="icon-box">🛺</div><h3>Auto</h3>
+      <p>Affordable and reliable auto-rickshaws for short trips.</p>
+      <div class="price">from 50 rs</div>
+    </div>
+    <div class="service-card premium" data-service="Premium">
+      <div class="icon-box">👑</div><h3>Premium</h3>
+      <p>Black-label sedans, top-rated drivers, glass interiors.</p>
+      <div class="price">from 200 rs</div>
+    </div>
+    <div class="service-card" data-service="Courier">
+      <div class="icon-box">📦</div><h3>Courier</h3>
+      <p>Send parcels and documents across town within minutes.</p>
+      <div class="price">from 150 rs</div>
+    </div>
+  </div>
+</section>
+
+<!-- REQUEST -->
+<section id="request" class="section">
+  <div class="request-card">
+    <div class="grid-bg subtle"></div>
+    <h2 class="font-display section-title">Request a <span class="neon-text">ride</span></h2>
+    <p class="section-sub">Tell us where you're going. We'll handle the glow.</p>
+    <form class="form" id="rideForm">
+      <div class="row">
+        <label>Pickup<input type="text" name="pickup" placeholder="Where are you?" required /></label>
+        <label>Drop-off<input type="text" name="dropoff" placeholder="Where to?" required /></label>
+      </div>
+      <div class="row">
+        <label>Service type
+          <select name="service" id="serviceSelect" required>
+            <option value="">Choose service</option>
+            <option>Car · AC</option>
+            <option>Car · Non-AC</option>
+            <option>Bike</option>
+            <option>Auto</option>
+            <option>Premium</option>
+            <option>Courier</option>
+          </select>
+        </label>
+        <label>When
+          <select name="when">
+            <option>Right now</option>
+            <option>In 15 minutes</option>
+            <option>Schedule for later</option>
+          </select>
+        </label>
+      </div>
+      <div class="row hidden" id="courierFields">
+        <label>Package details<input type="text" name="package" placeholder="What are you sending?" /></label>
+        <label>Recipient phone<input type="tel" name="recipient" placeholder="+92 ..." /></label>
+      </div>
+      <button type="submit" class="btn-primary big">Request now →</button>
+      <div class="form-msg" id="formMsg"></div>
+    </form>
+  </div>
+</section>
+
+<!-- HOW -->
+<section id="how" class="section bordered">
+  <div class="grid-bg subtle"></div>
+  <div class="section-inner">
+    <h2 class="font-display section-title">Three steps. <span class="neon-text">Zero friction.</span></h2>
+    <div class="steps" style="margin-top:48px">
+      <div><div class="font-display neon-text step-num">01</div><h3>Where to?</h3><p>Drop a pin or search a saved place. We pre-load fares before you book.</p></div>
+      <div><div class="font-display neon-text step-num">02</div><h3>Pick your ride</h3><p>AC, Bike, Premium or a Courier run — your choice.</p></div>
+      <div><div class="font-display neon-text step-num">03</div><h3>Glow & go</h3><p>Track your driver live with neon routes and live maps.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- COURIER -->
+<section id="courier" class="section">
+  <div class="courier-wrap">
+    <div>
+      <h2 class="font-display section-title">Send anything, <span class="neon-text">anywhere</span>.</h2>
+      <p class="section-sub">Forgot your laptop? Need to drop a gift across town? Our Courier moves your stuff with the same speed as our rides.</p>
+      <ul class="bullets">
+        <li>✦ Real-time tracking from pickup to drop-off</li>
+        <li>✦ Insured up to 200,000 rs by default</li>
+        <li>✦ Contactless handoff with verification code</li>
+        <li>✦ Same-city delivery in under 60 minutes</li>
+      </ul>
+      <a href="#request" class="btn-primary">Send a package →</a>
+    </div>
+    <div class="courier-art">
+      <span class="parcel">📦</span>
+      <div class="route-line pulse-glow"></div>
+      <span class="pin">📍</span>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="section">
+  <div class="cta-card">
+    <div class="grid-bg subtle"></div>
+    <h2 class="font-display section-title">Ready to <span class="neon-text">ride</span>?</h2>
+    <p class="section-sub" style="margin: 14px auto 32px;">Join millions moving through their city with a brighter, faster way to get around.</p>
+    <button class="btn-primary big" data-auth-open="register">Sign up and start moving →</button>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="logo font-display neon-text">⚡ DRIVEX</div>
+  <div>© 2026 Drivex Mobility. All rights glowing.</div>
+</footer>
+
+<!-- AUTH MODAL -->
+<div id="authModal" class="modal hidden">
+  <div class="modal-backdrop" data-auth-close></div>
+  <div class="modal-card">
+    <button class="modal-close" data-auth-close>×</button>
+    <h2 class="font-display modal-title neon-text">Welcome</h2>
+    <p class="modal-sub">Sign in or create an account to start riding.</p>
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-tab="login">Sign in</button>
+      <button class="auth-tab" data-tab="register">Register</button>
+    </div>
+
+    <form class="auth-form" id="loginForm">
+      <label>Username<input type="text" name="username" required autocomplete="username" /></label>
+      <label>Password<input type="password" name="password" required autocomplete="current-password" /></label>
+      <button type="submit" class="btn-primary">Sign in →</button>
+      <div class="auth-msg" id="loginMsg"></div>
+      <div class="auth-switch">No account? <button type="button" data-switch="register">Create one</button></div>
+    </form>
+
+    <form class="auth-form hidden" id="registerForm">
+      <label>Username<input type="text" name="username" required autocomplete="username" /></label>
+      <label>Email<input type="email" name="email" required autocomplete="email" /></label>
+      <label>Password<input type="password" name="password" required minlength="6" autocomplete="new-password" /></label>
+      <button type="submit" class="btn-primary">Create account →</button>
+      <div class="auth-msg" id="registerMsg"></div>
+      <div class="auth-switch">Already have one? <button type="button" data-switch="login">Sign in</button></div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // ---------- Service card → form ----------
+  const serviceSelect = document.getElementById('serviceSelect');
+  const courierFields = document.getElementById('courierFields');
+
+  document.querySelectorAll('.service-card').forEach((card) => {
+    card.addEventListener('click', () => {
+      const service = card.dataset.service;
+      if (serviceSelect && service) {
+        serviceSelect.value = service;
+        serviceSelect.dispatchEvent(new Event('change'));
+        document.getElementById('request').scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  });
+
+  serviceSelect.addEventListener('change', () => {
+    courierFields.classList.toggle('hidden', serviceSelect.value !== 'Courier');
+  });
+
+  // ---------- Ride form ----------
+  const form = document.getElementById('rideForm');
+  const msg = document.getElementById('formMsg');
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(form).entries());
+    if (!data.service) { msg.textContent = '⚠ Please choose a service.'; return; }
+    msg.textContent = `✓ ${data.service} requested from "${data.pickup}" to "${data.dropoff}". A driver will be assigned shortly.`;
+    form.reset();
+    courierFields.classList.add('hidden');
+  });
+
+  // ---------- Smooth scroll ----------
+  document.querySelectorAll('a[href^="#"]').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      const id = a.getAttribute('href');
+      if (id.length > 1) {
+        const el = document.querySelector(id);
+        if (el) { e.preventDefault(); el.scrollIntoView({ behavior: 'smooth' }); }
+      }
+    });
+  });
+
+  // ---------- Auth (localStorage) ----------
+
+  const modal = document.getElementById('authModal');
+  const loginForm = document.getElementById('loginForm');
+  const registerForm = document.getElementById('registerForm');
+  const loginMsg = document.getElementById('loginMsg');
+  const registerMsg = document.getElementById('registerMsg');
+  const userBadge = document.getElementById('userBadge');
+  const navSignIn = document.getElementById('navSignIn');
+
+
+  function openModal(tab = 'login') { modal.classList.remove('hidden'); switchTab(tab); }
+  function closeModal() { modal.classList.add('hidden'); loginMsg.textContent = ''; registerMsg.textContent = ''; loginForm.reset(); registerForm.reset(); }
+  function switchTab(tab) {
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    loginForm.classList.toggle('hidden', tab !== 'login');
+    registerForm.classList.toggle('hidden', tab !== 'register');
+  }
+
+  document.querySelectorAll('[data-auth-open]').forEach(el => el.addEventListener('click', () => openModal(el.dataset.authOpen)));
+  document.querySelectorAll('[data-auth-close]').forEach(el => el.addEventListener('click', closeModal));
+  document.querySelectorAll('[data-tab]').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+  document.querySelectorAll('[data-switch]').forEach(s => s.addEventListener('click', () => switchTab(s.dataset.switch)));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal(); });
+
+  
+
+  
+ registerForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const data = Object.fromEntries(new FormData(registerForm).entries());
+
+  const response = await fetch("http://localhost:8080/register", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(data)
+  });
+
+  const result = await response.text();
+
+  if(result.includes("saved")) {
+
+    registerMsg.className = "auth-msg success";
+    registerMsg.textContent = result;
+
+    setTimeout(() => {
+      window.location.href = "/dashboard.html";
+    }, 1000);
+
+  } else {
+
+    registerMsg.className = "auth-msg error";
+    registerMsg.textContent = result;
+
+  }
+});
+loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const data = Object.fromEntries(new FormData(loginForm).entries());
+
+    try {
+        const response = await fetch("http://localhost:8080/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.text();
+        const parts = result.split('|');
+
+        // SUCCESS: "ahmed|/dashboard.html"
+        if (parts.length === 2 && parts[1] === '/dashboard.html') {
+            sessionStorage.setItem('drivex_user', parts[0]);
+
+            loginMsg.className = "auth-msg success";
+            loginMsg.textContent = "Login successful! Redirecting...";
+            setTimeout(() => {
+                window.location.href = parts[1];
+            }, 1000);
+
+        } else {
+            // ERROR: "User not found" ya "Invalid credentials"
+            loginMsg.className = "auth-msg error";
+            loginMsg.textContent = result;
+        }
+
+    } catch (error) {
+        loginMsg.className = "auth-msg error";
+        loginMsg.textContent = "Server error. Try again.";
+    }
+});
+
+// Page load pe check karo
+const loggedInUser = sessionStorage.getItem('drivex_user');
+if (loggedInUser) {
+    navSignIn.classList.add('hidden');
+    userBadge.classList.remove('hidden');
+    userBadge.innerHTML = `👤 ${loggedInUser} <span style="margin-left:8px;opacity:0.6;">✕</span>`;
+    userBadge.addEventListener('click', () => {
+        sessionStorage.removeItem('drivex_user');
+        window.location.reload();
+    });
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DRIVEX — Courier</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root {
+            --bg: #080808;
+            --surface: #0f0f0e;
+            --surface-2: #141413;
+            --surface-3: #1c1c1a;
+            --gold: #c9a84c;
+            --gold-light: #e8c97a;
+            --gold-dim: rgba(201,168,76,0.12);
+            --gold-border: rgba(201,168,76,0.22);
+            --gold-border-strong: rgba(201,168,76,0.5);
+            --text: #f0ece0;
+            --text-secondary: #8c8a82;
+            --text-muted: #4a4843;
+            --green: #4caf82;
+            --green-dim: rgba(76,175,130,0.08);
+            --green-border: rgba(76,175,130,0.2);
+            --radius-sm: 8px;
+            --radius-md: 14px;
+            --radius-lg: 22px;
+            --radius-xl: 30px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+            pointer-events: none; z-index: 1000; opacity: 0.6;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 280px 1fr 300px;
+            grid-template-rows: 68px 1fr;
+            gap: 14px; padding: 14px;
+            height: 100vh;
+            position: relative; z-index: 1;
+        }
+
+        /* HEADER */
+        .header {
+            grid-column: 1 / -1;
+            display: flex; align-items: center; justify-content: space-between;
+            background: var(--surface);
+            border: 0.5px solid var(--gold-border);
+            border-radius: var(--radius-lg);
+            padding: 0 28px;
+            position: relative; overflow: hidden;
+        }
+        .header::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(201,168,76,0.025) 50%, transparent);
+            pointer-events: none;
+        }
+        .logo {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 20px; text-decoration: none; color: inherit;
+        }
+        .neon-text { color: var(--gold); font-family: 'DM Sans', sans-serif; font-weight: 500; letter-spacing: 0.1em; }
+        .header-center {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .module-badge {
+            display: flex; align-items: center; gap: 8px;
+            background: var(--gold-dim);
+            border: 0.5px solid var(--gold-border-strong);
+            border-radius: 999px; padding: 8px 18px;
+            font-family: 'DM Mono', monospace; font-size: 10px;
+            letter-spacing: 0.2em; color: var(--gold-light);
+            text-transform: uppercase;
+        }
+        .header-right { display: flex; align-items: center; gap: 16px; }
+        .back-link {
+            display: flex; align-items: center; gap: 6px;
+            font-family: 'DM Mono', monospace; font-size: 10px;
+            letter-spacing: 0.1em; color: var(--text-muted);
+            text-decoration: none; padding: 7px 14px;
+            border: 0.5px solid rgba(255,255,255,0.07);
+            border-radius: 999px;
+            transition: all 0.2s;
+        }
+        .back-link:hover { color: var(--gold); border-color: var(--gold-border); }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px rgba(76,175,130,0.6); }
+        .user-name { font-size: 13px; color: var(--text-secondary); letter-spacing: 0.04em; }
+        .avatar {
+            width: 34px; height: 34px; border-radius: 50%;
+            border: 1px solid var(--gold-border-strong);
+            background: var(--gold-dim);
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 13px; font-weight: 600; color: var(--gold);
+        }
+
+        /* PANEL */
+        .panel {
+            background: var(--surface);
+            border: 0.5px solid var(--gold-border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+        }
+        .panel-label {
+            font-family: 'DM Mono', monospace;
+            font-size: 9px; font-weight: 400;
+            letter-spacing: 0.2em; color: var(--text-muted);
+            text-transform: uppercase; margin-bottom: 14px;
+        }
+
+        /* LEFT SIDEBAR */
+        .sidebar-left {
+            display: flex; flex-direction: column; gap: 12px;
+            overflow-y: auto;
+        }
+        .sidebar-left::-webkit-scrollbar { width: 3px; }
+        .sidebar-left::-webkit-scrollbar-thumb { background: var(--gold-border); border-radius: 2px; }
+
+        /* WEIGHT BUTTONS */
+        .weight-row { display: flex; gap: 6px; }
+        .weight-btn {
+            flex: 1; padding: 12px 8px;
+            border-radius: var(--radius-md);
+            border: 0.5px solid rgba(255,255,255,0.07);
+            background: rgba(255,255,255,0.02);
+            color: var(--text-muted);
+            font-family: 'DM Mono', monospace; font-size: 9px;
+            letter-spacing: 0.08em; text-transform: uppercase;
+            cursor: pointer; transition: all 0.22s;
+            display: flex; flex-direction: column;
+            align-items: center; gap: 5px;
+        }
+        .weight-btn .w-icon { font-size: 18px; }
+        .weight-btn .w-label { color: var(--text-secondary); font-size: 10px; }
+        .weight-btn .w-range { font-size: 8px; opacity: 0.5; }
+        .weight-btn.active {
+            background: var(--gold-dim);
+            border-color: var(--gold-border-strong);
+            color: var(--gold-light);
+        }
+        .weight-btn.active .w-label { color: var(--gold-light); }
+        .weight-btn:hover:not(.active) { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); }
+
+        /* SEARCH STEPS */
+        .step-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 11px 14px;
+            border-radius: var(--radius-md);
+            border: 0.5px solid rgba(255,255,255,0.06);
+            background: rgba(255,255,255,0.02);
+            transition: all 0.2s;
+        }
+        .step-item.active {
+            border-color: var(--gold-border-strong);
+            background: var(--gold-dim);
+        }
+        .step-item.done {
+            border-color: rgba(76,175,130,0.3);
+            background: rgba(76,175,130,0.06);
+        }
+        .step-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--text-muted); flex-shrink: 0;
+            transition: all 0.2s;
+        }
+        .step-item.active .step-dot { background: var(--gold); box-shadow: 0 0 8px rgba(201,168,76,0.6); }
+        .step-item.done .step-dot { background: var(--green); box-shadow: 0 0 8px rgba(76,175,130,0.6); }
+        .step-text { flex: 1; }
+        .step-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.1em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 3px; }
+        .step-value { font-size: 12px; color: var(--text-secondary); font-weight: 300; }
+        .step-item.active .step-label { color: var(--gold); }
+        .step-item.active .step-value { color: var(--text); }
+        .step-item.done .step-label { color: var(--green); }
+        .step-item.done .step-value { color: var(--text); }
+
+        /* FARE BREAKDOWN */
+        .fare-breakdown {
+            background: rgba(255,255,255,0.02);
+            border: 0.5px solid rgba(255,255,255,0.05);
+            border-radius: var(--radius-md);
+            padding: 14px;
+        }
+        .fare-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 5px 0;
+            font-family: 'DM Mono', monospace; font-size: 10px;
+            color: var(--text-muted); letter-spacing: 0.04em;
+        }
+        .fare-row span:last-child { color: var(--text-secondary); }
+        .fare-row.total {
+            border-top: 0.5px solid rgba(255,255,255,0.07);
+            margin-top: 6px; padding-top: 10px;
+            font-size: 12px;
+        }
+        .fare-row.total span:first-child { color: var(--text); }
+        .fare-row.total span:last-child { color: var(--gold-light); font-size: 16px; font-family: 'Cormorant Garamond', serif; font-weight: 500; }
+
+        /* CONFIRM BUTTON */
+        .btn-confirm {
+            width: 100%; padding: 15px;
+            background: var(--gold); color: #0a0a09; border: none;
+            border-radius: var(--radius-md);
+            font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
+            letter-spacing: 0.12em; text-transform: uppercase;
+            cursor: pointer; transition: all 0.3s;
+            position: relative; overflow: hidden;
+        }
+        .btn-confirm::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%); pointer-events: none; }
+        .btn-confirm:hover { background: var(--gold-light); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(201,168,76,0.3); }
+        .btn-confirm:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+        /* VIEWPORT */
+        .viewport {
+            position: relative; border-radius: var(--radius-xl);
+            border: 0.5px solid var(--gold-border);
+            overflow: hidden; background: #0a0a09;
+        }
+        #map {
+            filter: invert(1) hue-rotate(180deg) brightness(1.3) saturate(0.7);
+            position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0;
+        }
+
+        @keyframes ripple {
+            0%   { transform: translate(-50%,-50%) scale(1); opacity: 0.4; }
+            100% { transform: translate(-50%,-50%) scale(2.5); opacity: 0; }
+        }
+        @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+        /* MAP OVERLAY */
+        .map-search-bar {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            width: 380px; z-index: 10;
+            background: rgba(10,10,9,0.92); backdrop-filter: blur(20px);
+            border: 0.5px solid var(--gold-border-strong);
+            border-radius: 999px; padding: 12px 20px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .map-search-bar input {
+            flex: 1; background: none; border: none; outline: none;
+            color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px;
+        }
+        .map-search-bar input::placeholder { color: var(--text-muted); }
+        .search-step-pill {
+            font-family: 'DM Mono', monospace; font-size: 9px;
+            letter-spacing: 0.1em; padding: 4px 10px;
+            border-radius: 999px; white-space: nowrap;
+            background: var(--gold-dim); border: 0.5px solid var(--gold-border);
+            color: var(--gold);
+        }
+
+        .action-float {
+            position: absolute; bottom: 20px; left: 20px; right: 20px;
+            background: rgba(10,10,9,0.92); backdrop-filter: blur(24px);
+            border: 0.5px solid var(--gold-border);
+            border-radius: var(--radius-lg);
+            padding: 18px 22px;
+            display: flex; align-items: center; justify-content: space-between; gap: 20px;
+        }
+        .action-float::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(201,168,76,0.4) 50%, transparent);
+        }
+        .route-info { display: flex; flex-direction: column; gap: 5px; flex-grow: 1; }
+        .route-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.2em; color: var(--text-muted); text-transform: uppercase; }
+        .route-from-to { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); }
+        .route-arrow { color: var(--gold); font-size: 11px; }
+        .route-meta { display: flex; gap: 16px; }
+        .meta-item { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-muted); letter-spacing: 0.05em; }
+        .meta-item span { color: var(--text-secondary); }
+
+        /* BATCH BADGE */
+        .batch-badge {
+            display: none; align-items: center; gap: 6px;
+            padding: 6px 12px; border-radius: 999px;
+            background: var(--green-dim); border: 0.5px solid var(--green-border);
+            font-family: 'DM Mono', monospace; font-size: 9px;
+            letter-spacing: 0.1em; color: var(--green);
+        }
+        .batch-badge.show { display: flex; }
+        .batch-badge::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--green); animation: blink 1.5s infinite; }
+
+        /* RIGHT SIDEBAR */
+        .sidebar-right { display: flex; flex-direction: column; gap: 12px; }
+
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .stat-card {
+            background: rgba(255,255,255,0.02);
+            border: 0.5px solid rgba(255,255,255,0.05);
+            border-radius: var(--radius-md); padding: 14px;
+        }
+        .stat-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.15em; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; }
+        .stat-value { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 500; color: var(--text); line-height: 1; }
+        .stat-value.accent { color: var(--gold-light); }
+        .stat-sub { font-size: 10px; color: var(--text-muted); margin-top: 4px; font-weight: 300; }
+
+        .activity-panel { flex-grow: 1; overflow: hidden; display: flex; flex-direction: column; }
+        .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .live-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.15em;
+            color: var(--green); background: var(--green-dim);
+            border: 0.5px solid var(--green-border); border-radius: 999px; padding: 3px 10px;
+        }
+        .live-badge::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--green); animation: blink 1.5s infinite; }
+
+        .log-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1; }
+        .log-list::-webkit-scrollbar { width: 3px; }
+        .log-list::-webkit-scrollbar-thumb { background: var(--gold-border); border-radius: 2px; }
+
+        .log-entry {
+            padding: 12px 14px; border-radius: var(--radius-md);
+            background: rgba(255,255,255,0.02); border: 0.5px solid rgba(255,255,255,0.05);
+            position: relative; overflow: hidden; transition: all 0.2s;
+        }
+        .log-entry::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--gold); opacity: 0.4; }
+        .log-entry.transit::before { background: var(--green); opacity: 1; }
+        .log-entry:hover { background: rgba(255,255,255,0.04); }
+        .log-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+        .log-title { font-size: 12px; font-weight: 500; color: var(--text); }
+        .log-badge { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.08em; padding: 2px 8px; border-radius: 999px; }
+        .log-badge.done { color: var(--text-muted); background: rgba(255,255,255,0.04); }
+        .log-badge.live { color: var(--green); background: var(--green-dim); }
+        .log-badge.batched { color: var(--gold); background: var(--gold-dim); }
+        .log-meta { font-size: 10px; color: var(--text-muted); font-weight: 300; }
+
+        /* ZONE PILL */
+        .zone-row { display: flex; gap: 6px; flex-wrap: wrap; }
+        .zone-pill {
+            font-family: 'DM Mono', monospace; font-size: 9px;
+            letter-spacing: 0.08em; padding: 4px 10px;
+            border-radius: 999px;
+            background: var(--gold-dim); border: 0.5px solid var(--gold-border);
+            color: var(--gold-light);
+        }
+
+        /* TOAST */
+        .toast {
+            position: fixed; bottom: 30px; left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--surface-2); border: 0.5px solid var(--gold-border-strong);
+            border-radius: var(--radius-md); padding: 14px 24px;
+            font-size: 13px; color: var(--text);
+            transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+            z-index: 9999; white-space: nowrap;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body>
+
+<div class="layout">
+
+    <!-- HEADER -->
+    <header class="header">
+        <a href="/dashboard.html" class="logo">
+            <span>⚡</span>
+            <span class="neon-text">DRIVEX</span>
+        </a>
+        <div class="header-center">
+            <div class="module-badge">📦 Courier — Instant Delivery</div>
+        </div>
+        <div class="header-right">
+            <a href="/dashboard.html" class="back-link">← Dashboard</a>
+            <div class="status-dot"></div>
+            <span class="user-name" id="userName">--</span>
+            <div class="avatar" id="userAvatar">?</div>
+        </div>
+    </header>
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar-left">
+
+        <!-- Weight Selection -->
+        <div class="panel">
+            <p class="panel-label">Package Weight</p>
+            <div class="weight-row">
+                <button class="weight-btn active" data-weight="light" data-kg="0.5" data-base="100" data-rate="20">
+                    <span class="w-icon">🪶</span>
+                    <span class="w-label">Light</span>
+                    <span class="w-range">0–1 kg</span>
+                </button>
+                <button class="weight-btn" data-weight="medium" data-kg="2.5" data-base="150" data-rate="30">
+                    <span class="w-icon">📦</span>
+                    <span class="w-label">Medium</span>
+                    <span class="w-range">1–5 kg</span>
+                </button>
+                <button class="weight-btn" data-weight="heavy" data-kg="10" data-base="200" data-rate="40">
+                    <span class="w-icon">🏋️</span>
+                    <span class="w-label">Heavy</span>
+                    <span class="w-range">5–20 kg</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Location Steps -->
+        <div class="panel">
+            <p class="panel-label">Delivery Route</p>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="step-item active" id="stepPickup">
+                    <div class="step-dot"></div>
+                    <div class="step-text">
+                        <div class="step-label">Pickup</div>
+                        <div class="step-value" id="pickupVal">Search in map above...</div>
+                    </div>
+                </div>
+                <div style="width:2px;height:16px;background:rgba(255,255,255,0.06);margin-left:18px;"></div>
+                <div class="step-item" id="stepDrop">
+                    <div class="step-dot"></div>
+                    <div class="step-text">
+                        <div class="step-label">Drop</div>
+                        <div class="step-value" id="dropVal">Set after pickup...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Zone Info -->
+            <div style="margin-top:14px; display:flex; flex-direction:column; gap:6px;" id="zoneSection" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-family:'DM Mono',monospace; font-size:9px; letter-spacing:0.1em; color:var(--text-muted); text-transform:uppercase;">Zones</span>
+                    <div class="zone-row">
+                        <span class="zone-pill" id="pickupZonePill">--</span>
+                        <span style="color:var(--text-muted); font-size:11px;">→</span>
+                        <span class="zone-pill" id="dropZonePill">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fare Breakdown -->
+        <div class="panel">
+            <p class="panel-label">Fare Estimate</p>
+            <div class="fare-breakdown">
+                <div class="fare-row"><span>Base Fare</span><span id="fareBase">₨100</span></div>
+                <div class="fare-row"><span>Distance</span><span id="fareDist">-- km</span></div>
+                <div class="fare-row"><span>Rate</span><span id="fareRate">₨20 / km</span></div>
+                <div class="fare-row total"><span>Total</span><span id="fareTotal">₨--</span></div>
+            </div>
+
+            <!-- Batch Badge -->
+            <div class="batch-badge" id="batchBadge" style="margin-top:10px;">
+                Batched delivery — shared trip!
+            </div>
+
+            <!-- Confirm -->
+            <button class="btn-confirm" id="confirmBtn" style="margin-top:14px;" disabled>
+                Send Parcel
+            </button>
+        </div>
+
+    </aside>
+
+    <!-- MAP -->
+    <main class="viewport">
+        <div id="map"></div>
+
+        <!-- Search Bar -->
+        <div class="map-search-bar">
+            <span id="stepPill" class="search-step-pill">📍 Pickup</span>
+            <input type="text" id="searchInput" placeholder="Search pickup location in Karachi...">
+        </div>
+
+        <!-- Action Float -->
+        <div class="action-float">
+            <div class="route-info">
+                <span class="route-label">Active Route</span>
+                <div class="route-from-to" id="routeDisplay">
+                    <span style="color:var(--text-muted)">Set pickup location to begin</span>
+                </div>
+                <div class="route-meta">
+                    <span class="meta-item">DIST <span id="metaDist">--</span></span>
+                    <span class="meta-item">ZONE <span id="metaZone">--</span></span>
+                    <span class="meta-item">WEIGHT <span id="metaWeight">Light</span></span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- RIGHT SIDEBAR -->
+    <aside class="sidebar-right">
+
+        <!-- Stats -->
+        <div class="panel">
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <p class="stat-label">Delivered</p>
+                    <p class="stat-value accent" id="totalDeliveries">--</p>
+                    <p class="stat-sub">this month</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">Batched</p>
+                    <p class="stat-value" id="totalBatched">--</p>
+                    <p class="stat-sub">saved trips</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Parcels -->
+        <div class="panel activity-panel">
+            <div class="panel-header">
+                <p class="panel-label" style="margin-bottom:0;">Recent Parcels</p>
+                <span class="live-badge">Live</span>
+            </div>
+            <div class="log-list" id="recentLog">
+                <p style="color:var(--text-muted); font-size:13px; padding:4px 0;">Loading...</p>
+            </div>
+        </div>
+
+    </aside>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── SESSION ──
+if (!sessionStorage.getItem('drivex_user')) {
+    window.location.href = '/index.html';
+}
+const currentUser = sessionStorage.getItem('drivex_user') || 'guest';
+document.getElementById('userName').textContent  = currentUser;
+document.getElementById('userAvatar').textContent = currentUser.charAt(0).toUpperCase();
+
+// ── TOAST ──
+function showToast(msg, d = 3000) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), d);
+}
+
+// ── STATE ──
+let searchStep       = 'pickup'; // pickup → drop → done
+let courierPickup    = '', courierDrop = '';
+let courierPickupLat = 0, courierPickupLon = 0;
+let courierDropLat   = 0, courierDropLon   = 0;
+let courierDistKm    = 0;
+let courierWeightKg  = 0.5;
+let courierBase      = 100;
+let courierRate      = 20;
+let pickupMarker     = null, dropMarker = null;
+let routeLine        = null;
+
+// ── MAP ──
+const map = L.map('map', { zoomControl: false }).setView([24.8607, 67.0011], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+        map.setView([pos.coords.latitude, pos.coords.longitude], 14);
+    }, () => {});
+}
+
+// ── WEIGHT BUTTONS ──
+document.querySelectorAll('.weight-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.weight-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        courierWeightKg = parseFloat(btn.dataset.kg);
+        courierBase     = parseInt(btn.dataset.base);
+        courierRate     = parseInt(btn.dataset.rate);
+        document.getElementById('fareBase').textContent = `₨${courierBase}`;
+        document.getElementById('fareRate').textContent = `₨${courierRate} / km`;
+        document.getElementById('metaWeight').textContent = btn.querySelector('.w-label').textContent;
+        updateFare();
+    });
+});
+
+function updateFare() {
+    if (courierDistKm > 0) {
+        const total = courierBase + (courierDistKm * courierRate);
+        document.getElementById('fareTotal').textContent = `₨${Math.round(total)}`;
+        document.getElementById('fareDist').textContent  = `${courierDistKm} km`;
+    }
+}
+
+// ── ZONE DETECTION ──
+function detectZone(lat, lon) {
+    if (lat >= 24.78 && lat <= 24.83 && lon >= 67.02 && lon <= 67.08) return { num: 1, name: 'DHA/Clifton' };
+    if (lat >= 24.90 && lat <= 24.95 && lon >= 67.08 && lon <= 67.14) return { num: 2, name: 'Gulshan/Johar' };
+    if (lat >= 24.85 && lat <= 24.90 && lon >= 67.01 && lon <= 67.07) return { num: 3, name: 'Saddar/PECHS' };
+    if (lat >= 24.83 && lat <= 24.88 && lon >= 67.14 && lon <= 67.22) return { num: 4, name: 'Malir/Korangi' };
+    if (lat >= 24.97 && lat <= 25.03 && lon >= 67.02 && lon <= 67.10) return { num: 5, name: 'North Karachi' };
+    return { num: 0, name: 'Karachi' };
+}
+
+// ── HAVERSINE ──
+function haversineKm(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 +
+              Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+              Math.sin(dLon/2)**2;
+    return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) * 10) / 10;
+}
+
+// ── SEARCH ──
+const searchInput = document.getElementById('searchInput');
+const stepPill    = document.getElementById('stepPill');
+
+searchInput.addEventListener('keypress', async e => {
+    if (e.key !== 'Enter' || !searchInput.value.trim()) return;
+    const query = searchInput.value.trim();
+
+    let lat, lon, displayName;
+    try {
+        const res  = await fetch(
+            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)},Karachi&format=json&limit=1`,
+            { headers: { 'Accept-Language': 'en' } }
+        );
+        const data = await res.json();
+        if (!data.length) { showToast('Location not found. Try again.'); return; }
+        lat         = parseFloat(data[0].lat);
+        lon         = parseFloat(data[0].lon);
+        displayName = data[0].display_name.split(',')[0];
+    } catch {
+        showToast('Search failed. Check connection.'); return;
+    }
+
+    if (searchStep === 'pickup') {
+        courierPickup    = displayName;
+        courierPickupLat = lat;
+        courierPickupLon = lon;
+
+        // Pickup marker
+        if (pickupMarker) map.removeLayer(pickupMarker);
+        pickupMarker = L.marker([lat, lon], { icon: L.divIcon({
+            className: '',
+            html: `<div style="position:relative;width:36px;height:36px;">
+                     <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:36px;height:36px;border-radius:50%;border:1.5px solid rgba(201,168,76,0.4);animation:ripple 2s ease-out infinite;"></div>
+                     <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:12px;height:12px;border-radius:50%;background:#c9a84c;box-shadow:0 0 12px rgba(201,168,76,0.8);"></div>
+                   </div>`,
+            iconSize: [36,36], iconAnchor: [18,18]
+        })}).addTo(map);
+        map.flyTo([lat, lon], 14, { duration: 1.2 });
+
+        // Update UI
+        document.getElementById('pickupVal').textContent = displayName;
+        document.getElementById('stepPickup').classList.remove('active');
+        document.getElementById('stepPickup').classList.add('done');
+        document.getElementById('stepDrop').classList.add('active');
+
+        const pZone = detectZone(lat, lon);
+        document.getElementById('pickupZonePill').textContent = `Z${pZone.num} · ${pZone.name}`;
+
+        document.getElementById('routeDisplay').innerHTML =
+            `<span>${displayName}</span><span class="route-arrow">→</span><span style="color:var(--text-muted)">Set drop...</span>`;
+
+        // Next step
+        searchStep = 'drop';
+        stepPill.textContent = '🏁 Drop';
+        stepPill.style.background = 'rgba(76,175,130,0.1)';
+        stepPill.style.borderColor = 'rgba(76,175,130,0.3)';
+        stepPill.style.color = '#4caf82';
+        searchInput.value = '';
+        searchInput.placeholder = 'Search drop location in Karachi...';
+        showToast(`📍 Pickup set: ${displayName}`);
+
+    } else if (searchStep === 'drop') {
+        courierDrop    = displayName;
+        courierDropLat = lat;
+        courierDropLon = lon;
+
+        // Drop marker
+        if (dropMarker) map.removeLayer(dropMarker);
+        dropMarker = L.marker([lat, lon], { icon: L.divIcon({
+            className: '',
+            html: `<div style="position:relative;width:36px;height:36px;">
+                     <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:36px;height:36px;border-radius:50%;border:1.5px solid rgba(76,175,130,0.4);animation:ripple 2s ease-out infinite;"></div>
+                     <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#4caf82;box-shadow:0 0 12px rgba(76,175,130,0.8);"></div>
+                   </div>`,
+            iconSize: [36,36], iconAnchor: [18,18]
+        })}).addTo(map);
+
+        // Draw route
+        drawRoute();
+
+        // Distance
+        courierDistKm = haversineKm(courierPickupLat, courierPickupLon, lat, lon);
+
+        // Zone
+        const dZone = detectZone(lat, lon);
+        document.getElementById('dropZonePill').textContent = `Z${dZone.num} · ${dZone.name}`;
+        document.getElementById('zoneSection').style.display = 'flex';
+
+        // Update UI
+        document.getElementById('dropVal').textContent = displayName;
+        document.getElementById('stepDrop').classList.remove('active');
+        document.getElementById('stepDrop').classList.add('done');
+
+        document.getElementById('metaDist').textContent  = `${courierDistKm} km`;
+        document.getElementById('metaZone').textContent  = `Z${dZone.num}`;
+
+        document.getElementById('routeDisplay').innerHTML =
+            `<span>${courierPickup}</span><span class="route-arrow">→</span><span>${displayName}</span>`;
+
+        updateFare();
+
+        // Enable confirm
+        document.getElementById('confirmBtn').disabled = false;
+
+        searchStep = 'done';
+        stepPill.textContent = '✓ Route Set';
+        searchInput.value = '';
+        searchInput.placeholder = 'Route set ✓';
+        showToast(`🏁 Drop: ${displayName} · ${courierDistKm} km`);
+    }
+});
+
+// ── DRAW ROUTE ──
+async function drawRoute() {
+    try {
+        const res = await fetch('/api/locations/route', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                pickupLat: courierPickupLat.toString(),
+                pickupLon: courierPickupLon.toString(),
+                destLat:   courierDropLat.toString(),
+                destLon:   courierDropLon.toString()
+            })
+        });
+        const data = await res.json();
+        if (routeLine) map.removeLayer(routeLine);
+        routeLine = L.geoJSON(data, {
+            style: { color: '#c9a84c', weight: 3, opacity: 0.7, dashArray: '8, 4' }
+        }).addTo(map);
+        map.fitBounds(routeLine.getBounds(), { padding: [60, 60] });
+    } catch {
+        // Fallback — straight line
+        if (routeLine) map.removeLayer(routeLine);
+        routeLine = L.polyline(
+            [[courierPickupLat, courierPickupLon], [courierDropLat, courierDropLon]],
+            { color: '#c9a84c', weight: 2, opacity: 0.5, dashArray: '6,4' }
+        ).addTo(map);
+        map.fitBounds(routeLine.getBounds(), { padding: [60, 60] });
+    }
+}
+
+// ── CONFIRM ──
+document.getElementById('confirmBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('confirmBtn');
+    btn.textContent = 'Sending...';
+    btn.disabled = true;
+    btn.style.background = 'rgba(201,168,76,0.5)';
+
+    try {
+        const res = await fetch('/api/courier/request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username:       currentUser,
+                pickupAddress:  courierPickup,
+                dropAddress:    courierDrop,
+                pickupLat:      courierPickupLat,
+                pickupLon:      courierPickupLon,
+                dropLat:        courierDropLat,
+                dropLon:        courierDropLon,
+                weightKg:       courierWeightKg,
+                distanceKm:     courierDistKm
+            })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            if (data.batched) {
+                document.getElementById('batchBadge').classList.add('show');
+                showToast(`📦 Batched! ${data.batchInfo}`, 5000);
+            } else {
+                showToast(`✅ Parcel booked! Fare: ₨${Math.round(data.finalFare)}`, 4000);
+            }
+
+            btn.textContent = '✓ Parcel Sent!';
+            btn.style.background = '#4caf82';
+            btn.style.color = '#0a0a09';
+
+            // Refresh recent
+            loadRecentDeliveries();
+
+            setTimeout(() => {
+                btn.textContent = 'Send Another';
+                btn.style.background = 'var(--gold)';
+                btn.style.color = '#0a0a09';
+                btn.disabled = false;
+                resetForm();
+            }, 4000);
+        } else {
+            showToast('Error: ' + (data.message || 'Unknown error'));
+            btn.textContent = 'Send Parcel';
+            btn.style.background = 'var(--gold)';
+            btn.disabled = false;
+        }
+    } catch (err) {
+        showToast('Network error. Try again.');
+        btn.textContent = 'Send Parcel';
+        btn.style.background = 'var(--gold)';
+        btn.disabled = false;
+    }
+});
+
+// ── RESET FORM ──
+function resetForm() {
+    searchStep = 'pickup';
+    courierPickup = courierDrop = '';
+    courierPickupLat = courierPickupLon = courierDropLat = courierDropLon = 0;
+    courierDistKm = 0;
+
+    if (pickupMarker) { map.removeLayer(pickupMarker); pickupMarker = null; }
+    if (dropMarker)   { map.removeLayer(dropMarker);   dropMarker   = null; }
+    if (routeLine)    { map.removeLayer(routeLine);     routeLine    = null; }
+
+    document.getElementById('pickupVal').textContent = 'Search in map above...';
+    document.getElementById('dropVal').textContent   = 'Set after pickup...';
+    document.getElementById('stepPickup').className  = 'step-item active';
+    document.getElementById('stepDrop').className    = 'step-item';
+    document.getElementById('fareTotal').textContent = '₨--';
+    document.getElementById('fareDist').textContent  = '-- km';
+    document.getElementById('metaDist').textContent  = '--';
+    document.getElementById('metaZone').textContent  = '--';
+    document.getElementById('batchBadge').classList.remove('show');
+    document.getElementById('routeDisplay').innerHTML = `<span style="color:var(--text-muted)">Set pickup location to begin</span>`;
+
+    stepPill.textContent = '📍 Pickup';
+    stepPill.style.cssText = '';
+    searchInput.placeholder = 'Search pickup location in Karachi...';
+}
+
+//load recent deliveries stats
+async function loadRecentDeliveries() {
+    try {
+        // Stats alag fetch karo
+        const statsRes = await fetch(`/api/courier/stats/${currentUser}`);
+        const stats = await statsRes.json();
+        document.getElementById('totalDeliveries').textContent = stats.delivered || 0;
+        document.getElementById('totalBatched').textContent    = stats.batched   || 0;
+
+        // Recent deliveries
+        const res  = await fetch('/api/courier/recent');
+        const data = await res.json();
+        const log  = document.getElementById('recentLog');
+
+        if (!data.length) {
+            log.innerHTML = `<p style="color:var(--text-muted);font-size:12px;padding:4px 0;">No deliveries yet</p>`;
+            return;
+        }
+
+        log.innerHTML = data.map(r => {
+            const isLive    = ['assigned','in_transit','batched'].includes(r.status);
+            const isBatched = r.status === 'batched';
+            const badgeClass = isLive ? (isBatched ? 'batched' : 'live') : 'done';
+            const badgeText  = isLive ? (isBatched ? '📦 Batched' : 'In Transit') : 'Delivered';
+            const time       = new Date(r.requestedAt);
+            const timeStr    = time.toLocaleTimeString('en-PK', { hour:'2-digit', minute:'2-digit' });
+            const weightIcon = r.weightCategory === 'LIGHT' ? '🪶' : r.weightCategory === 'MEDIUM' ? '📦' : '🏋️';
+
+            return `
+            <div class="log-entry ${isLive ? 'transit' : ''}">
+                <div class="log-top">
+                    <span class="log-title">${weightIcon} ${r.pickupAddress} → ${r.dropAddress}</span>
+                    <span class="log-badge ${badgeClass}">${badgeText}</span>
+                </div>
+                <p class="log-meta">${timeStr} · ₨${Math.round(r.finalFare)} · ${r.weightCategory}</p>
+            </div>`;
+        }).join('');
+
+    } catch(e) {
+        console.log('Error:', e);
+    }
+}
+</script>
+</body>
+</html>
